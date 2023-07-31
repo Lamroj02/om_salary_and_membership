@@ -92,12 +92,12 @@ class _MyHomePageState extends State<MyHomePage> {
       body: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: <Widget>[
-          Container(
-            child: Image.asset(
+
+          Image.asset(
               'assets/images/OM.jpg',
               scale: 1.8,
-            ),
           ),
+
           Column(
           // Column is also a layout widget. It takes a list of children and
           // arranges them vertically. By default, it sizes itself to fit its
