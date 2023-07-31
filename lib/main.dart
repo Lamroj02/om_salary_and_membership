@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:om_salary_and_membership/salaryRoutes.dart';
+import 'package:om_salary_and_membership/membershipRoutes.dart';
 
 void main() {
   runApp(const MyApp());
@@ -105,21 +106,42 @@ class _MyHomePageState extends State<MyHomePage> {
           // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
           // action in the IDE, or press "p" in the console), to see the
           // wireframe for each widget.
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: <Widget>[
             const Text(
               'Would you like to manage the:',
-              style: TextStyle( fontSize: 30),
+              style: TextStyle( fontSize: 30 ),
             ),
 
             TextButton(
+              style: const ButtonStyle( backgroundColor: MaterialStatePropertyAll<Color>(Color.fromARGB(12,0,0,0)) ),
               onPressed: () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => const SalaryHomePage(title: 'Salary Manager',)),
                 );
               },
-              child: const Text('Salaries'),
+              child: const Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Text('Salaries',
+                style: TextStyle( fontSize: 24 )),
+              ),
+            ),
+
+            TextButton(
+              style: const ButtonStyle( backgroundColor: MaterialStatePropertyAll<Color>(Color.fromARGB(12,0,0,0)) ),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const MembershipHomePage(title: 'Membership Manager',)
+                  ),
+                );
+              },
+              child: const Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Text('Memberships',
+                    style: TextStyle( fontSize: 24 )),
+              ),
             )
           ],
         ),
