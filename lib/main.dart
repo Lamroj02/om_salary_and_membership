@@ -88,11 +88,17 @@ class _MyHomePageState extends State<MyHomePage> {
         // the App.build method, and use it to set our appbar title.
         title: Text(widget.title),
       ),
-      body: Align(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        alignment: const Alignment(0.5,0),
-        child: Column(
+
+      body: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: <Widget>[
+          Container(
+            child: Image.asset(
+              'assets/images/OM.jpg',
+              scale: 1.8,
+            ),
+          ),
+          Column(
           // Column is also a layout widget. It takes a list of children and
           // arranges them vertically. By default, it sizes itself to fit its
           // children horizontally, and tries to be as tall as its parent.
@@ -108,6 +114,7 @@ class _MyHomePageState extends State<MyHomePage> {
           // wireframe for each widget.
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: <Widget>[
+
             const Text(
               'Would you like to manage the:',
               style: TextStyle( fontSize: 30 ),
@@ -144,7 +151,7 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
             )
           ],
-        ),
+        ),],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _incrementCounter,
