@@ -1,5 +1,13 @@
 import 'package:flutter/material.dart';
 
+//Employee class
+class Employee{
+  final String name;
+  final double hoursRate;
+  final List<double> hoursWeek;
+
+  Employee(this.name,this.hoursRate,this.hoursWeek);
+}
 
 class SalaryHomePage extends StatefulWidget {
   const SalaryHomePage({super.key, required this.title});
@@ -21,6 +29,12 @@ class SalaryHomePage extends StatefulWidget {
 
 class _SalaryHomePageState extends State<SalaryHomePage> {
 
+  List<Employee> empList = [
+    Employee( 'Samjhana Lama' , 15.74 , [0,3,4,4,4.5,5,6] ),
+    Employee( 'Roj Kumar Lama' , 14.96 , [0,6,7,7,7,8,9] ),
+    Employee( 'Paulo' , 13.59 , [0,3,3.5,4,4,4.5,5.5] ),
+  ];
+
 
   @override
   Widget build(BuildContext context) {
@@ -30,50 +44,44 @@ class _SalaryHomePageState extends State<SalaryHomePage> {
     // The Flutter framework has been optimized to make rerunning build methods
     // fast, so that you can just rebuild anything that needs updating rather
     // than having to individually change instances of widgets.
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Salary Manager'),
-        backgroundColor: Colors.green,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-
-      body: Align(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        alignment: Alignment(0.5,0),
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: <Widget>[
-            const Text(
-              'Arrived',
-              style: TextStyle( fontSize: 30),
+    return DefaultTabController(
+        length: 3,
+        child: Scaffold(
+          appBar: AppBar(
+            title: const Text('Salaries Manager'),
+            backgroundColor: Colors.lightGreen,
+            bottom: const TabBar(
+              labelColor: Colors.black,
+              indicatorColor: Colors.limeAccent,
+              tabs: [
+                Tab(text: 'Overview'),
+                Tab(text: 'Employees'),
+                Tab(text: 'Pay'),
+              ],
             ),
+          ),
 
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: const Text('Salaries'),
-            )
-          ],
+          body: TabBarView(
+            children: [
+              //OVERVIEW TAB
+              ListView.builder(
+                itemCount: empList.length,
+                itemBuilder: (BuildContext context, int index) {
+                  return ListTile(
+                    title: Text(empList[index].name),
+                  );
+                },
+              )
+
+              //EMPLOYEES TAB
+
+
+              //PAY TAB
+
+
+            ],
+          ),
         ),
-      ),
     );
   }
 }
