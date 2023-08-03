@@ -43,7 +43,7 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
       body: Align(
         // Center is a layout widget. It takes a single child and positions it
         // in the middle of the parent.
-        alignment: Alignment(0.5,0),
+        alignment: const Alignment(0.5,0),
         child: Column(
           // Column is also a layout widget. It takes a list of children and
           // arranges them vertically. By default, it sizes itself to fit its
