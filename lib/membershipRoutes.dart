@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 
 class MembershipHomePage extends StatefulWidget {
@@ -20,8 +21,8 @@ class MembershipHomePage extends StatefulWidget {
 }
 
 class Member{
-  final String name,id;
-  final int points;
+  String name,id;
+  int points;
 
   Member(this.name, this.id, this.points);
 }
@@ -44,13 +45,65 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
     Member("Megan",  '100', 110),
     Member("Nancy",  '107', 140),
     Member("Oscar",  '117', 180),
+    Member("Samjhana Lama", '207',100),
+    Member("Samjhana Shrestha", '115',100)
   ];
   List<Member> filteredMembers = [];
+  late TextEditingController nameController, pointController,tdPointController,sumController;
+  Member selectedMember = Member('','',0);
+  late bool gotVoucher;
+  late Color cancelColor;
 
   @override
   void initState() {
     super.initState();
     filteredMembers = sampleMembers;
+    nameController = TextEditingController(text: '');
+    pointController = TextEditingController(text: '');
+    tdPointController = TextEditingController(text: '');
+    sumController = TextEditingController(text: '');
+    gotVoucher = false;
+    cancelColor = Colors.white;
+  }
+
+  @override
+  void dispose() {
+    nameController.dispose(); // Dispose of controller to ensure no memory leaks
+    pointController.dispose();
+    tdPointController.dispose();
+    sumController.dispose();
+    //Saving Information Logic
+
+    super.dispose();
+  }
+
+  void updateSum() {
+    int value1 = int.tryParse(pointController.text) ?? 0;
+    int value2 = int.tryParse(tdPointController.text) ?? 0;
+    int sum = value1 + value2;
+    setState(() {
+      sumController.text = sum.toString();
+      if (sum > 199) {
+        gotVoucher = true;
+      }
+    });
+  }
+
+  void updateControllers(
+      {String name = '',
+      String prev = '',
+      String today = '',
+      String sum = '',
+      bool voucher = false,
+      Color cancel = Colors.white}){
+    nameController = TextEditingController(text: name);
+    pointController = TextEditingController(text: prev);
+    tdPointController = TextEditingController(text: today);
+    sumController = TextEditingController(text: sum);
+    gotVoucher = voucher;
+    cancelColor = cancel;
+
+    updateSum();
   }
 
   @override
@@ -76,7 +129,7 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
 
       body: Row(
 
-        children: [Align(
+        children: [Center(
 
           child: Container(
             margin: const EdgeInsets.all(16.0),
@@ -92,38 +145,58 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
             ),
 
             child: SizedBox(
+              //dynamic sizing
               height: screenHeight * 0.7,
-              width:  screenWidth * 0.7,
+              width:  screenWidth * 0.65,
 
               child: Column(
 
                 children: [Padding(
                     padding: const EdgeInsets.all(8.0),
-                    child: TextField(
-                      decoration: const InputDecoration(
-                        hintText: 'Search member...',
-                        prefixIcon: Icon(Icons.search),
-                      ),
-                      onChanged: (value) {
-                        // Implement the filtering logic here
-                        if (value.isNotEmpty) {
-                          setState(() {
-                            filteredMembers = sampleMembers
-                                .where((member) =>
-                                member.name.toLowerCase().contains(
-                                    value.toLowerCase()))
-                                .toList() +
-                              sampleMembers
-                              .where((member) =>
-                              member.id.contains(value)).toList();
-                          });
-                        }else{
-                          setState(() {
-                            filteredMembers = sampleMembers;
-                          });
-                        }
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
 
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            decoration: const InputDecoration(
+                              hintText: 'Search member...',
+                              prefixIcon: Icon(Icons.search),
+                            ),
+                            onChanged: (value) {
+                              // Implement the filtering logic here
+                              if (value.isNotEmpty) {
+                                setState(() {
+                                  filteredMembers = sampleMembers
+                                      .where((member) =>
+                                      member.name.toLowerCase().contains(
+                                          value.toLowerCase()))
+                                      .toList() +
+                                    sampleMembers
+                                    .where((member) =>
+                                    member.id.contains(value)).toList();
+                                });
+                              }else{
+                                setState(() {
+                                  filteredMembers = sampleMembers;
+                                });
+                              }
+                            },
+                          ),
+                      ),
+                      ElevatedButton(
+                      onPressed: (){
+                        //Switch to new page where you make new
                       },
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.all(20.0),
+                        shape: const CircleBorder(),
+                      ),
+                      child: const Icon(Icons.add),
+
+                      ),
+
+                      ],
                     ),
                   ),
                   Expanded(
@@ -133,21 +206,199 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
                     ),
                     itemCount: filteredMembers.length,
                     itemBuilder: (BuildContext context, int index) {
-                      return _buildGridItem(filteredMembers[index]);
+                      return GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            for(int i = 0; i < sampleMembers.length; i++){
+                              if (selectedMember.id == sampleMembers[i].id){
+                                sampleMembers[i].points = int.parse(sumController.text) > 199 ?
+                                  int.parse(sumController.text) - 200 : int.parse(sumController.text);
+                              }
+                            }
+                            if (selectedMember.id == filteredMembers[index].id) {
+                              selectedMember = Member("","",0);
+                            } else {
+                              selectedMember = filteredMembers[index];
+                            }
+
+                            updateControllers(
+                              name: selectedMember.name,
+                              prev: selectedMember.points.toString(),
+                            );
+                          });
+                        },
+                        child: _buildGridItem(filteredMembers[index]),
+                      );
                     },
                   ),
                 ),]
               ),
             ),
           ),
-        )],
+        ),
+        Expanded(
+          child:
+            Container(
+              margin: const EdgeInsets.only(
+                left: 4,
+                top: 16,
+                right: 16,
+                bottom: 8,
+              ),
+              padding: const EdgeInsets.all(4),
+
+              decoration: BoxDecoration(
+                color: Colors.indigo.shade100,
+                borderRadius: BorderRadius.circular(10.0),
+                border: Border.all(
+                  color: Colors.indigo.shade300, // Set the border color here
+                  width: 10.0, // Set the border width here
+                ),
+              ),
+
+              child:
+              Column(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  Row( //Text: "Name" and Delete Button
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      const Text('Name:',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      Container(
+                        margin: const EdgeInsetsDirectional.only(start: 40),
+                        child: ElevatedButton(
+                          onPressed: (){
+                            if (cancelColor == Colors.redAccent){
+                              for(int i = 0; i < sampleMembers.length; i++){
+                                if (selectedMember.id == sampleMembers[i].id){
+                                  setState(() {
+                                    sampleMembers.removeAt(i);
+                                    selectedMember = Member('','',0);
+                                    updateControllers();
+                                  });
+                                }
+                              }
+                            }
+                            else{
+                              setState(() {
+                                cancelColor = Colors.redAccent;
+                              });
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: cancelColor,
+                            padding: const EdgeInsets.all(20.0),
+                            shape: const CircleBorder(),
+                          ),
+                          child: const Icon(Icons.cancel_rounded),
+
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox( //Member's name text field
+                    width: screenWidth * 0.2,
+                    child:
+                      TextField(
+                        controller: nameController,
+                        textAlign: TextAlign.center,
+                        decoration: const InputDecoration(
+                          hintText: "Member's name"
+                        ),
+                        onChanged: (value){
+                          selectedMember.name = value;
+                        },
+                      ),
+                  ),
+                  Row( //Text: "Previous Points" and Input field
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      const Text('Previous Points:',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      SizedBox(
+                        width: screenWidth * 0.1,
+                        child: TextField(
+                          controller: pointController,
+                          enabled: false,
+                          //keyboardType: TextInputType.number, // Set the input type to number
+                          //inputFormatters: [FilteringTextInputFormatter.digitsOnly], // Accept only digits
+                        ),
+                      ),
+                    ],
+                  ),
+                  Row( //Text: "Today's Points:" and Input field
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+
+                    children: [
+                      const Text("Today's Points:",
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      SizedBox(
+                        width: screenWidth * 0.1,
+                        child: TextField(
+                          controller: tdPointController,
+                          keyboardType: TextInputType.number, // Set the input type to number
+                          inputFormatters: [FilteringTextInputFormatter.digitsOnly], // Accept only digits
+                          onChanged: (value){
+                            updateSum();
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  Row( //Text: "Total Points:" and Text field (not interactive)
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+
+                    children: [
+                      const Text(
+                        "Total Points:",
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      SizedBox(
+                        width: screenWidth * 0.1,
+                        child: TextField(
+                          controller: sumController,
+                          enabled: false,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Visibility(
+                    visible: gotVoucher,
+                    child: const Text(
+                      "£10 Voucher earned!!!",
+                      style: TextStyle( fontSize: 14, fontWeight: FontWeight.bold),
+                    ))
+                ]
+              ),
+            )
+        ),
+        ],
       )
     );
   }
 
   //Items for the grid
   Widget _buildGridItem(Member member) {
+    bool isSelected = selectedMember.id == member.id;
+
     return Card(
+      color: isSelected ? Colors.indigo.shade200 : Colors.indigo.shade50,
       child: Center(
         child: Text(
           member.id,
@@ -155,5 +406,9 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
         ),
       ),
     );
+  }
+
+  int asd(){
+    return 1;
   }
 }
