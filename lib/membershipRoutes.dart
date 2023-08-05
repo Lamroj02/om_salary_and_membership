@@ -19,11 +19,45 @@ class MembershipHomePage extends StatefulWidget {
   State<MembershipHomePage> createState() => _MembershipHomePageState();
 }
 
+class Member{
+  final String name,id;
+  final int points;
+
+  Member(this.name, this.id, this.points);
+}
+
 class _MembershipHomePageState extends State<MembershipHomePage> {
 
+  List<Member> sampleMembers = [
+    Member("Alice", '001', 150),
+    Member("Bob",  '008', 120),
+    Member("Carol",  '018', 180),
+    Member("David",  '025', 90),
+    Member("Eve",  '035', 160),
+    Member("Frank",  '042', 130),
+    Member("Grace",  '052', 170),
+    Member("Harry",  '059', 110),
+    Member("Ivy",  '069', 140),
+    Member("Jack",  '076', 170),
+    Member("Karen",  '086', 100),
+    Member("Larry",  '093', 190),
+    Member("Megan",  '100', 110),
+    Member("Nancy",  '107', 140),
+    Member("Oscar",  '117', 180),
+  ];
+  List<Member> filteredMembers = [];
+
+  @override
+  void initState() {
+    super.initState();
+    filteredMembers = sampleMembers;
+  }
 
   @override
   Widget build(BuildContext context) {
+
+    double screenHeight = MediaQuery.of(context).size.height;
+    double screenWidth  = MediaQuery.of(context).size.width;
     // This method is rerun every time setState is called, for instance as done
     // by the _incrementCounter method above.
     //
@@ -40,38 +74,84 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
         ),
       ),
 
-      body: Align(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        alignment: const Alignment(0.5,0),
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: <Widget>[
-            const Text(
-              'Arrived',
-              style: TextStyle( fontSize: 30),
+      body: Row(
+
+        children: [Align(
+
+          child: Container(
+            margin: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(4),
+
+            decoration: BoxDecoration(
+              color: Colors.indigo.shade100,
+              borderRadius: BorderRadius.circular(10.0),
+              border: Border.all(
+                color: Colors.indigo.shade300, // Set the border color here
+                width: 10.0, // Set the border width here
+              ),
             ),
 
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: const Text('Salaries'),
-            )
-          ],
+            child: SizedBox(
+              height: screenHeight * 0.7,
+              width:  screenWidth * 0.7,
+
+              child: Column(
+
+                children: [Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: TextField(
+                      decoration: const InputDecoration(
+                        hintText: 'Search member...',
+                        prefixIcon: Icon(Icons.search),
+                      ),
+                      onChanged: (value) {
+                        // Implement the filtering logic here
+                        if (value.isNotEmpty) {
+                          setState(() {
+                            filteredMembers = sampleMembers
+                                .where((member) =>
+                                member.name.toLowerCase().contains(
+                                    value.toLowerCase()))
+                                .toList() +
+                              sampleMembers
+                              .where((member) =>
+                              member.id.contains(value)).toList();
+                          });
+                        }else{
+                          setState(() {
+                            filteredMembers = sampleMembers;
+                          });
+                        }
+
+                      },
+                    ),
+                  ),
+                  Expanded(
+                  child: GridView.builder(
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 3, // Number of columns in the grid
+                    ),
+                    itemCount: filteredMembers.length,
+                    itemBuilder: (BuildContext context, int index) {
+                      return _buildGridItem(filteredMembers[index]);
+                    },
+                  ),
+                ),]
+              ),
+            ),
+          ),
+        )],
+      )
+    );
+  }
+
+  //Items for the grid
+  Widget _buildGridItem(Member member) {
+    return Card(
+      child: Center(
+        child: Text(
+          member.id,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18,),
         ),
       ),
     );

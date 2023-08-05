@@ -185,10 +185,14 @@ class _SalaryHomePageState extends State<SalaryHomePage> {
 
 
               //EMPLOYEES TAB
-
+              Row(
+                //Refer to draw.io wireframe
+              ),
 
               //PAY TAB
-
+              Row(
+                //Refer to draw.io wireframe
+              ),
 
             ],
           ),
