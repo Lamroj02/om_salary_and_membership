@@ -20,15 +20,21 @@ class MembershipHomePage extends StatefulWidget {
   State<MembershipHomePage> createState() => _MembershipHomePageState();
 }
 
+  /// USER CLASSES ///
+  //#region
+
 class Member{
   String name,id;
   int points;
 
   Member(this.name, this.id, this.points);
 }
+  //#endregion
 
 class _MembershipHomePageState extends State<MembershipHomePage> {
 
+  /// VARIABLES ///
+  //#region
   List<Member> sampleMembers = [
     Member("Alice", '001', 150),
     Member("Bob",  '008', 120),
@@ -53,7 +59,12 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
   Member selectedMember = Member('','',0);
   late bool gotVoucher;
   late Color cancelColor;
+  //#endregion
 
+  /// ========= ///
+  /// Overrides ///
+  /// ========= ///
+  //#region
   @override
   void initState() {
     super.initState();
@@ -76,8 +87,11 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
 
     super.dispose();
   }
+  //#endregion
 
-  void updateSum() {
+  /// Controller Methods ///
+  //#region
+  void updateSum() { // Updates {sumController} with prev points and today points, checks for voucher eligibility and sets state.
     int value1 = int.tryParse(pointController.text) ?? 0;
     int value2 = int.tryParse(tdPointController.text) ?? 0;
     int sum = value1 + value2;
@@ -89,7 +103,7 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
     });
   }
 
-  void updateControllers(
+  void updateControllers( //Default - clears all controllers, otherwise allows editing of controllers.
       {String name = '',
       String prev = '',
       String today = '',
@@ -105,10 +119,28 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
 
     updateSum();
   }
+  //#endregion
+
+  /// Member Editing Methods ///
+  //#region
+  void pointsOverflow({String compID = ''}){
+    compID = compID == '' ? selectedMember.id : compID;
+    for(int i = 0; i < sampleMembers.length; i++){
+      if (compID == sampleMembers[i].id){
+        sampleMembers[i].points = int.parse(sumController.text) > 199 ?
+        int.parse(sumController.text) - 200 : int.parse(sumController.text);
+      }
+    }
+  }
+//#endregion
+
+  /// -=-=-=-=-=- ///
+  ///    MAIN     ///
+  /// -=-=-=-=-=- ///
 
   @override
   Widget build(BuildContext context) {
-
+    sampleMembers.sort((a, b) => a.id.compareTo(b.id));
     double screenHeight = MediaQuery.of(context).size.height;
     double screenWidth  = MediaQuery.of(context).size.width;
     // This method is rerun every time setState is called, for instance as done
@@ -184,9 +216,30 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
                             },
                           ),
                       ),
-                      ElevatedButton(
+                      ElevatedButton( //If no member selected, info from controllers used to make new member.
                       onPressed: (){
-                        //Switch to new page where you make new
+                        if (selectedMember.id != ''){ //Ensures no member has been selected
+                          return;
+                        }
+
+                        int i = 0; //stores last checked id
+                        for (int j = 0; j < sampleMembers.length; j++){ //looks for the lowest available id
+                          if (int.parse(sampleMembers[j].id) != i + 1){ //condition if id found is not exactly 1 higher than id prior
+                            i++;
+                            selectedMember.id = ' '; //placeholder to indicate available id found
+                            break;
+                          }
+                          i = int.parse(sampleMembers[j].id);
+                        }
+                        if (selectedMember.id == ''){ //if prior search didn't find an id, give end id
+                          i = int.parse(sampleMembers[sampleMembers.length - 1].id) + 1;
+                        }
+                        selectedMember.id = i < 10 ? '00$i' : i > 99 ?  '$i' : '0$i'; //actual id being given using i
+                        Member temp = Member(selectedMember.name,selectedMember.id,int.parse(sumController.text));
+                        selectedMember = Member('','',0);
+                        sampleMembers.add(temp);
+                        pointsOverflow(compID: temp.id);
+                        updateControllers();
                       },
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.all(20.0),
@@ -209,12 +262,8 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
                       return GestureDetector(
                         onTap: () {
                           setState(() {
-                            for(int i = 0; i < sampleMembers.length; i++){
-                              if (selectedMember.id == sampleMembers[i].id){
-                                sampleMembers[i].points = int.parse(sumController.text) > 199 ?
-                                  int.parse(sumController.text) - 200 : int.parse(sumController.text);
-                              }
-                            }
+                            pointsOverflow();
+
                             if (selectedMember.id == filteredMembers[index].id) {
                               selectedMember = Member("","",0);
                             } else {
@@ -271,11 +320,17 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
                       ),
                       Container(
                         margin: const EdgeInsetsDirectional.only(start: 40),
-                        child: ElevatedButton(
+                        child: ElevatedButton( // Delete Member button
                           onPressed: (){
-                            if (cancelColor == Colors.redAccent){
+                            if (cancelColor == Colors.redAccent){ // If the button is already red, delete selected member
                               for(int i = 0; i < sampleMembers.length; i++){
                                 if (selectedMember.id == sampleMembers[i].id){
+                                  for(int j = 0; j < filteredMembers.length; j++){
+                                    if(selectedMember.id == filteredMembers[j].id){
+                                      filteredMembers.removeAt(j);
+                                      break;
+                                    }
+                                  }
                                   setState(() {
                                     sampleMembers.removeAt(i);
                                     selectedMember = Member('','',0);
@@ -297,7 +352,7 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
                           ),
                           child: const Icon(Icons.cancel_rounded),
 
-                        ),
+                        ),  // Delete Member
                       ),
                     ],
                   ),
@@ -329,8 +384,6 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
                         child: TextField(
                           controller: pointController,
                           enabled: false,
-                          //keyboardType: TextInputType.number, // Set the input type to number
-                          //inputFormatters: [FilteringTextInputFormatter.digitsOnly], // Accept only digits
                         ),
                       ),
                     ],
@@ -393,6 +446,8 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
     );
   }
 
+  /// Widgets
+  //#region
   //Items for the grid
   Widget _buildGridItem(Member member) {
     bool isSelected = selectedMember.id == member.id;
@@ -407,8 +462,5 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
       ),
     );
   }
-
-  int asd(){
-    return 1;
-  }
+  //#endregion
 }
