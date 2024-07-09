@@ -51,8 +51,8 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
     Member("Megan",  '100', 110),
     Member("Nancy",  '107', 140),
     Member("Oscar",  '117', 180),
-    Member("Samjhana Lama", '207',100),
-    Member("Samjhana Shrestha", '115',100)
+    Member("Sam Tangerine", '207',100),
+    Member("Polly Amorus", '115',100)
   ];
   List<Member> filteredMembers = [];
   late TextEditingController nameController, pointController,tdPointController,sumController;
