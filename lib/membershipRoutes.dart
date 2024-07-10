@@ -20,12 +20,14 @@ class MembershipHomePage extends StatefulWidget {
   State<MembershipHomePage> createState() => _MembershipHomePageState();
 }
 
+
   /// USER CLASSES ///
   //#region
 
 class Member{
   String name,id;
   int points;
+  //final voucher = time.add(const Duration(days: 30));
 
   Member(this.name, this.id, this.points);
 }
@@ -74,7 +76,7 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
     tdPointController = TextEditingController(text: '');
     sumController = TextEditingController(text: '');
     gotVoucher = false;
-    cancelColor = Colors.white;
+    _eventDeselect();
   }
 
   @override
@@ -88,6 +90,21 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
     super.dispose();
   }
   //#endregion
+
+  /// Event Listeners ///
+  //Triggers on member deselection
+  void _eventDeselect(){
+    setState(() {
+      cancelColor = Colors.grey;
+    });
+    print("Deselected");
+  }
+
+  void _eventSelect(){
+    setState(() {
+      cancelColor = Colors.white;
+    });
+  }
 
   /// Controller Methods ///
   //#region
@@ -108,14 +125,12 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
       String prev = '',
       String today = '',
       String sum = '',
-      bool voucher = false,
-      Color cancel = Colors.white}){
+      bool voucher = false}){
     nameController = TextEditingController(text: name);
     pointController = TextEditingController(text: prev);
     tdPointController = TextEditingController(text: today);
     sumController = TextEditingController(text: sum);
     gotVoucher = voucher;
-    cancelColor = cancel;
 
     updateSum();
   }
@@ -132,6 +147,58 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
       }
     }
   }
+
+  void deleteMember() {
+    if (cancelColor == Colors
+        .redAccent) { // If the button is already red, delete selected member
+      for (int i = 0; i < sampleMembers.length; i++) {
+        if (selectedMember.id == sampleMembers[i].id) {
+          for (int j = 0; j < filteredMembers.length; j++) {
+            if (selectedMember.id == filteredMembers[j].id) {
+              filteredMembers.removeAt(j);
+              break;
+            }
+          }
+          setState(() {
+            sampleMembers.removeAt(i);
+            selectedMember = Member('', '', 0);
+            updateControllers();
+          });
+        }
+      }
+    }
+    else if(cancelColor == Colors.grey){}
+    else {
+      setState(() {
+        cancelColor = Colors.redAccent;
+      });
+    }
+  }
+
+  void addMember(){
+    setState(() {
+      selectedMember = Member("",'',0);
+    });
+    int i = 1; //stores last checked id
+    for (int j = 0; j < sampleMembers.length; j++){ //looks for the lowest available id
+      if (int.parse(sampleMembers[j].id) != i){ //condition if id found is not exactly 1 higher than id prior
+        selectedMember.id = ' '; //placeholder to indicate available id found
+        break;
+      }
+      i++;
+    }
+    if (selectedMember.id == ''){ //if prior search didn't find an id, give end id
+      i = int.parse(sampleMembers[sampleMembers.length - 1].id);
+    }
+    selectedMember.id = i < 10 ? '00$i' : i > 99 ?  '$i' : '0$i'; //actual id being given using i
+    Member temp = Member('',selectedMember.id,0);
+    selectedMember = Member('','',0);
+    sampleMembers.add(temp);
+    pointsOverflow(compID: temp.id);
+    updateControllers();
+
+  }
+
 //#endregion
 
   /// -=-=-=-=-=- ///
@@ -152,11 +219,54 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Membership Manager'),
+        toolbarHeight: 80.0,
         backgroundColor: Colors.indigo,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
+          color: Colors.indigo.shade100,
         ),
+        actions: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.start,
+            children:[
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.all(20.0),
+                  shape: const CircleBorder(),
+                ),
+                child: const Icon(Icons.save),
+              ),
+              _sizedPadding(0.05, 0.01),
+              ElevatedButton(
+                onPressed: (){
+                  addMember();
+                },
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.all(20.0),
+                  shape: const CircleBorder(),
+                ),
+                child: const Icon(Icons.add),
+
+              ),
+              _sizedPadding(0.05, 0.01),
+              ElevatedButton( // Delete Member button
+                onPressed: (){
+                    deleteMember();
+                  },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: cancelColor,
+                  padding: const EdgeInsets.all(20.0),
+                  shape: const CircleBorder(),
+                ),
+                child: const Icon(Icons.cancel_rounded),
+
+              ),
+              _sizedPadding(0.05, 0.01),
+            ],
+          ),
+        ],
       ),
 
       body: Row(
@@ -178,8 +288,8 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
 
             child: SizedBox(
               //dynamic sizing
-              height: screenHeight * 0.7,
-              width:  screenWidth * 0.65,
+              height: screenHeight * 0.6,
+              width:  screenWidth * 0.45,
 
               child: Column(
 
@@ -216,38 +326,7 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
                             },
                           ),
                       ),
-                      ElevatedButton( //If no member selected, info from controllers used to make new member.
-                      onPressed: (){
-                        if (selectedMember.id != ''){ //Ensures no member has been selected
-                          return;
-                        }
 
-                        int i = 0; //stores last checked id
-                        for (int j = 0; j < sampleMembers.length; j++){ //looks for the lowest available id
-                          if (int.parse(sampleMembers[j].id) != i + 1){ //condition if id found is not exactly 1 higher than id prior
-                            i++;
-                            selectedMember.id = ' '; //placeholder to indicate available id found
-                            break;
-                          }
-                          i = int.parse(sampleMembers[j].id);
-                        }
-                        if (selectedMember.id == ''){ //if prior search didn't find an id, give end id
-                          i = int.parse(sampleMembers[sampleMembers.length - 1].id) + 1;
-                        }
-                        selectedMember.id = i < 10 ? '00$i' : i > 99 ?  '$i' : '0$i'; //actual id being given using i
-                        Member temp = Member(selectedMember.name,selectedMember.id,int.parse(sumController.text));
-                        selectedMember = Member('','',0);
-                        sampleMembers.add(temp);
-                        pointsOverflow(compID: temp.id);
-                        updateControllers();
-                      },
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.all(20.0),
-                        shape: const CircleBorder(),
-                      ),
-                      child: const Icon(Icons.add),
-
-                      ),
 
                       ],
                     ),
@@ -265,8 +344,11 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
                             pointsOverflow();
 
                             if (selectedMember.id == filteredMembers[index].id) {
-                              selectedMember = Member("","",0);
-                            } else {
+                            _eventDeselect();
+                            selectedMember = Member("","",0);
+                            }
+                            else {
+                              _eventSelect();
                               selectedMember = filteredMembers[index];
                             }
 
@@ -320,39 +402,6 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
                       ),
                       Container(
                         margin: const EdgeInsetsDirectional.only(start: 40),
-                        child: ElevatedButton( // Delete Member button
-                          onPressed: (){
-                            if (cancelColor == Colors.redAccent){ // If the button is already red, delete selected member
-                              for(int i = 0; i < sampleMembers.length; i++){
-                                if (selectedMember.id == sampleMembers[i].id){
-                                  for(int j = 0; j < filteredMembers.length; j++){
-                                    if(selectedMember.id == filteredMembers[j].id){
-                                      filteredMembers.removeAt(j);
-                                      break;
-                                    }
-                                  }
-                                  setState(() {
-                                    sampleMembers.removeAt(i);
-                                    selectedMember = Member('','',0);
-                                    updateControllers();
-                                  });
-                                }
-                              }
-                            }
-                            else{
-                              setState(() {
-                                cancelColor = Colors.redAccent;
-                              });
-                            }
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: cancelColor,
-                            padding: const EdgeInsets.all(20.0),
-                            shape: const CircleBorder(),
-                          ),
-                          child: const Icon(Icons.cancel_rounded),
-
-                        ),  // Delete Member
                       ),
                     ],
                   ),
@@ -460,6 +509,13 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18,),
         ),
       ),
+    );
+  }
+
+  Widget _sizedPadding(double width, double height){
+    return SizedBox(
+      width:  MediaQuery.of(context).size.width * width,
+      height: MediaQuery.of(context).size.height * height
     );
   }
   //#endregion
