@@ -27,9 +27,9 @@ class MembershipHomePage extends StatefulWidget {
 class Member{
   String name,id;
   int points;
-  //final voucher = time.add(const Duration(days: 30));
+  String voucher;
 
-  Member(this.name, this.id, this.points);
+  Member(this.name, this.id, this.points, {this.voucher = ''});
 }
   //#endregion
 
@@ -57,7 +57,7 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
     Member("Polly Amorus", '115',100)
   ];
   List<Member> filteredMembers = [];
-  late TextEditingController nameController, pointController,tdPointController,sumController;
+  late TextEditingController nameController, pointController,tdPointController,sumController,voucherController;
   Member selectedMember = Member('','',0);
   late bool gotVoucher;
   late Color cancelColor;
@@ -75,6 +75,7 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
     pointController = TextEditingController(text: '');
     tdPointController = TextEditingController(text: '');
     sumController = TextEditingController(text: '');
+    voucherController = TextEditingController(text: '');
     gotVoucher = false;
     _eventDeselect();
   }
@@ -85,6 +86,7 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
     pointController.dispose();
     tdPointController.dispose();
     sumController.dispose();
+    voucherController.dispose();
     //Saving Information Logic
 
     super.dispose();
@@ -108,15 +110,18 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
 
   /// Controller Methods ///
   //#region
-  void updateSum() { // Updates {sumController} with prev points and today points, checks for voucher eligibility and sets state.
+  void updateSum({String voucher = ''}) { // Updates {sumController} with prev points and today points, checks for voucher eligibility and sets state.
     int value1 = int.tryParse(pointController.text) ?? 0;
     int value2 = int.tryParse(tdPointController.text) ?? 0;
     int sum = value1 + value2;
     setState(() {
       sumController.text = sum.toString();
-      if (sum > 199) {
+      if (sum > 199 && !gotVoucher) {
         gotVoucher = true;
+        selectedMember.voucher = DateTime.now().add(const Duration(days:31)).toString().split(' ')[0];
       }
+
+      voucherController = TextEditingController(text: (gotVoucher ? selectedMember.voucher : 'Inactive'));
     });
   }
 
@@ -125,14 +130,14 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
       String prev = '',
       String today = '',
       String sum = '',
-      bool voucher = false}){
+      String voucher = ''}){
     nameController = TextEditingController(text: name);
     pointController = TextEditingController(text: prev);
     tdPointController = TextEditingController(text: today);
     sumController = TextEditingController(text: sum);
-    gotVoucher = voucher;
+    gotVoucher = voucher != '' ? DateTime.now().isBefore(DateTime.parse(voucher)) : false; //false = expired, true = active
 
-    updateSum();
+    updateSum(voucher: voucher);
   }
   //#endregion
 
@@ -355,6 +360,7 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
                             updateControllers(
                               name: selectedMember.name,
                               prev: selectedMember.points.toString(),
+                              voucher: selectedMember.voucher,
                             );
                           });
                         },
@@ -403,22 +409,23 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
                       Container(
                         margin: const EdgeInsetsDirectional.only(start: 40),
                       ),
+                      SizedBox( //Member's name text field
+                        width: screenWidth * 0.2,
+                        child:
+                        TextField(
+                          controller: nameController,
+                          textAlign: TextAlign.center,
+                          decoration: const InputDecoration(
+                              hintText: "Member's name"
+                          ),
+                          onChanged: (value){
+                            selectedMember.name = value;
+                          },
+                        ),
+                      ),
                     ],
                   ),
-                  SizedBox( //Member's name text field
-                    width: screenWidth * 0.2,
-                    child:
-                      TextField(
-                        controller: nameController,
-                        textAlign: TextAlign.center,
-                        decoration: const InputDecoration(
-                          hintText: "Member's name"
-                        ),
-                        onChanged: (value){
-                          selectedMember.name = value;
-                        },
-                      ),
-                  ),
+
                   Row( //Text: "Previous Points" and Input field
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
@@ -480,12 +487,49 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
                       ),
                     ],
                   ),
-                  Visibility(
-                    visible: gotVoucher,
+                  Row( //Text: "Voucher" field.
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+
+                    children: [
+                      const Text('Voucher Expiry (Y-M-D):',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      SizedBox(
+                        width: screenWidth * 0.2,
+                        child: TextField(
+                          controller: voucherController,
+                          enabled: false,
+                        ),
+                      ),
+                    ],
+                  ),
+                  TextButton (
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.indigo.shade200,
+                      backgroundColor: Colors.indigo.shade300,
+                      padding: const EdgeInsets.all(25),
+                    ),
+
+                    onPressed: () {
+                      if(!gotVoucher){return;} //Must have voucher to interact with button
+
+                      setState(() {
+                        gotVoucher = false;
+                        selectedMember.voucher = '';
+                        updateSum();
+                      });
+                    },
                     child: const Text(
-                      "£10 Voucher earned!!!",
-                      style: TextStyle( fontSize: 14, fontWeight: FontWeight.bold),
-                    ))
+                        "Deactivate Voucher",
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
                 ]
               ),
             )
