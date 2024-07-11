@@ -143,7 +143,7 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
     for(int i = 0; i < sampleMembers.length; i++){
       if (compID == sampleMembers[i].id){
         sampleMembers[i].points = int.parse(sumController.text) > 199 ?
-        int.parse(sumController.text) - 200 : int.parse(sumController.text);
+        int.parse(sumController.text) - 200 : int.parse(sumController.text); //Change required for else statement
       }
     }
   }
@@ -163,6 +163,7 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
             sampleMembers.removeAt(i);
             selectedMember = Member('', '', 0);
             updateControllers();
+            _eventDeselect();
           });
         }
       }
@@ -194,7 +195,6 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
     Member temp = Member('',selectedMember.id,0);
     selectedMember = Member('','',0);
     sampleMembers.add(temp);
-    pointsOverflow(compID: temp.id);
     updateControllers();
 
   }
