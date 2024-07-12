@@ -180,8 +180,18 @@ class _SalaryHomePageState extends State<SalaryHomePage> {
             title: const Text('Salaries Manager'),
             backgroundColor: Colors.lightGreen,
             bottom: const TabBar(
-              labelColor: Colors.black,
-              indicatorColor: Colors.limeAccent,
+              labelColor: Color.fromARGB(255, 49, 84, 28),
+              labelStyle: TextStyle(
+
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
+              unselectedLabelStyle: TextStyle(
+                fontSize: 16,
+              ),
+              indicatorColor: Color.fromARGB(255, 58, 95, 34),
+              indicatorSize: TabBarIndicatorSize.tab,
+              indicatorWeight: 5,
               tabs: [
                 Tab(text: 'Overview'),
                 Tab(text: 'Employees'),
