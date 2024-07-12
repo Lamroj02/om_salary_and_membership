@@ -95,6 +95,7 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
 
   /// Event Listeners ///
   //Triggers on member deselection
+  //#region
   void _eventDeselect(){
     setState(() {
       cancelColor = Colors.grey;
@@ -107,6 +108,7 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
       cancelColor = Colors.white;
     });
   }
+//#endregion
 
   /// Controller Methods ///
   //#region
