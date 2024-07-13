@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "519858690666",
+    "project_id": "om-sim-db",
+    "storage_bucket": "om-sim-db.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:519858690666:android:349a2b53f7c0a647434813",
+        "android_client_info": {
+          "package_name": "com.example.om_salary_and_membership"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDoZwpB2yxjutZudh3QHkU1RfEK9tf8TXw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
