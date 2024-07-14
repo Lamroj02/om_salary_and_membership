@@ -1,6 +1,19 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 
+
+final db = FirebaseFirestore.instance;
+List<Employee> tempList = [
+    Employee(name: 'Jor' ,hoursRate: 14.96 ,hoursWeek: [0,6,7,7,7,8,9] ,tipsWeek: 24.00),
+    Employee(name: 'Oluap' ,hoursRate: 13.59 ,hoursWeek: [0,3,3.5,4,4,4.5,5.5] ,tipsWeek: 24.00 ),
+    Employee(name: 'Hsetirh' ,hoursRate: 10.25 ,hoursWeek: [0,0,0,0,4,4.5,2] ,tipsWeek: 12.00),
+    Employee(name: 'Aniras' ,hoursRate: 13.98 ,hoursWeek: [0,0,0,0,3.5,4,0] ,tipsWeek: 11.00 ),
+    Employee(name: 'Nire' ,hoursRate: 8.30 ,hoursWeek: [0,4,0,0,4,0,4] ,tipsWeek: 9.00 ),
+    Employee(name: 'Aeht' ,hoursRate: 7.20 ,hoursWeek: [0,0,0,0,4,0,4] ,tipsWeek: 6.75 ),
+    Employee(name: 'Nire' ,hoursRate: 8.30 ,hoursWeek: [0,4,0,0,4,0,4] ,tipsWeek: 9.00 ),
+    Employee(name: 'Aeht' ,hoursRate: 7.20 ,hoursWeek: [0,0,0,0,4,0,4] ,tipsWeek: 6.75 ),
+];
 
 
 /// === CLASSES === ///
@@ -11,8 +24,13 @@ class Employee{
   final List<double> hoursWeek;
   final double tipsWeek;
 
-  Employee(this.name,this.hoursRate,this.hoursWeek, this.tipsWeek);
+  Employee({
+    required this.name,
+    required this.hoursRate,
+    required this.hoursWeek,
+    required this.tipsWeek});
 
+  //#region === METHODS ===
   double sumHoursWeek(){
 
     return hoursWeek.fold<double>(
@@ -23,6 +41,35 @@ class Employee{
   double sumEarnedWeek({bool useTips = true}){
     return hoursRate * sumHoursWeek() + (useTips ? tipsWeek : 0);
   }
+
+  //#endregion
+
+  factory Employee.fromFirestore(DocumentSnapshot doc) {
+    Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+
+    // Helper function to safely parse a value to double
+    double safeParseDouble(dynamic value) {
+      if (value is num) return value.toDouble();
+      if (value is String) return double.tryParse(value) ?? 0.0;
+      return 0.0;
+    }
+
+    // Safely parse hoursWeek
+    List<double> hoursWeek = [];
+    if (data['hoursWeek'] is List) {
+      hoursWeek = (data['hoursWeek'] as List)
+          .map((e) => safeParseDouble(e))
+          .toList();
+    }
+
+    return Employee(
+      name: (data['name'] as String?) ?? '',
+      hoursRate: safeParseDouble(data['hoursRate']),
+      hoursWeek: hoursWeek,
+      tipsWeek: safeParseDouble(data['tipsWeek']),
+    );
+  }
+
 }
 
 class SalaryHomePage extends StatefulWidget {
@@ -47,21 +94,38 @@ class SalaryHomePage extends StatefulWidget {
 /// === METHODS === ///
 //#region
 
+
+Future<void> addEmployee(Employee employee) async {
+  try {
+    await db.collection('Employees').add({
+      'name': employee.name,
+      'hoursRate': employee.hoursRate,
+      'hoursWeek': employee.hoursWeek,
+      'tipsWeek': employee.tipsWeek,
+    });
+    print('Employee added successfully');
+  } catch (e) {
+    print('Error adding employee: $e');
+  }
+}
+
+//Updates on save button tap - prior to tap, any updated employees are copied to a
+//separate array<Employee> with updated details, then on save, update using array then clears.
+Future<void> updateEmployee(String docId, Map<String, dynamic> updatedFields) async {
+  try {
+    await FirebaseFirestore.instance.collection('Employees').doc(docId).update(updatedFields);
+    print('Employee updated successfully');
+  } catch (e) {
+    print('Error updating employee: $e');
+  }
+}
+
+
 //#endregion
 
 class _SalaryHomePageState extends State<SalaryHomePage> {
 
-  List<Employee> empList = [
-    Employee( 'Anahjmas' , 15.74 , [0,3,4,4,4.5,5,6] , 24.00 ),
-    Employee( 'Jor' , 14.96 , [0,6,7,7,7,8,9] , 24.00),
-    Employee( 'Oluap' , 13.59 , [0,3,3.5,4,4,4.5,5.5] , 24.00 ),
-    Employee( 'Hsetirh' , 10.25 , [0,0,0,0,4,4.5,2] , 12.00),
-    Employee( 'Aniras' , 13.98 , [0,0,0,0,3.5,4,0] , 11.00 ),
-    Employee( 'Nire' , 8.30 , [0,4,0,0,4,0,4] , 9.00 ),
-    Employee( 'Aeht' , 7.20 , [0,0,0,0,4,0,4] , 6.75 ),
-    Employee( 'Nire' , 8.30 , [0,4,0,0,4,0,4] , 9.00 ),
-    Employee( 'Aeht' , 7.20 , [0,0,0,0,4,0,4] , 6.75 )
-  ];
+  List<Employee> empList = [];
 
   List<Employee> empListFiltered = [];
 
@@ -76,11 +140,23 @@ class _SalaryHomePageState extends State<SalaryHomePage> {
   /// === OVERRIDES === ///
   //#region
   @override
-  void initState(){
+  void initState() {
     super.initState();
-    empListFiltered = empList;
+    dbActions();
   }
 
+  Future<void> dbActions() async {
+    try {
+      final QuerySnapshot event = await db.collection("Employees").get();
+      setState(() {
+        empList = event.docs.map((doc) => Employee.fromFirestore(doc)).toList();
+      });
+      empListFiltered = empList;
+    } catch (e) {
+      print("Error fetching employee data: $e");
+      // Handle the error appropriately, e.g., show a user-friendly message
+    }
+  }
   //#endregion
 
   /// === WIDGETS === ///

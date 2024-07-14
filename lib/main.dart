@@ -1,8 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:om_salary_and_membership/salaryRoutes.dart';
 import 'package:om_salary_and_membership/membershipRoutes.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 
-void main() {
+
+
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized(); // <-- Ensure Flutter is initialized
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
   runApp(const MyApp());
 }
 
