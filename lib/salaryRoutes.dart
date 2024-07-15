@@ -2,17 +2,17 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 
-
+//Instantiates firestore database for use within flutter application
 final db = FirebaseFirestore.instance;
 List<Employee> tempList = [
-    Employee(name: 'Jor' ,hoursRate: 14.96 ,hoursWeek: [0,6,7,7,7,8,9] ,tipsWeek: 24.00),
-    Employee(name: 'Oluap' ,hoursRate: 13.59 ,hoursWeek: [0,3,3.5,4,4,4.5,5.5] ,tipsWeek: 24.00 ),
-    Employee(name: 'Hsetirh' ,hoursRate: 10.25 ,hoursWeek: [0,0,0,0,4,4.5,2] ,tipsWeek: 12.00),
-    Employee(name: 'Aniras' ,hoursRate: 13.98 ,hoursWeek: [0,0,0,0,3.5,4,0] ,tipsWeek: 11.00 ),
-    Employee(name: 'Nire' ,hoursRate: 8.30 ,hoursWeek: [0,4,0,0,4,0,4] ,tipsWeek: 9.00 ),
-    Employee(name: 'Aeht' ,hoursRate: 7.20 ,hoursWeek: [0,0,0,0,4,0,4] ,tipsWeek: 6.75 ),
-    Employee(name: 'Nire' ,hoursRate: 8.30 ,hoursWeek: [0,4,0,0,4,0,4] ,tipsWeek: 9.00 ),
-    Employee(name: 'Aeht' ,hoursRate: 7.20 ,hoursWeek: [0,0,0,0,4,0,4] ,tipsWeek: 6.75 ),
+    Employee(name: 'Abbie' ,hoursRate: 14.96, isStudent: true),
+    Employee(name: 'Abby' ,hoursRate: 13.59, isStudent: false ),
+    Employee(name: 'Bella' ,hoursRate: 10.25, isStudent: true),
+    Employee(name: 'Connor' ,hoursRate: 13.98, isStudent: false),
+    Employee(name: 'Damon' ,hoursRate: 8.30 , isStudent: true),
+    Employee(name: 'Emma' ,hoursRate: 7.20 , isStudent: false),
+    Employee(name: 'Fin' ,hoursRate: 8.30 , isStudent: false),
+    Employee(name: 'Gabriel' ,hoursRate: 7.20 , isStudent: false),
 ];
 
 
@@ -20,17 +20,17 @@ List<Employee> tempList = [
 //#region
 class Employee{
   final String name;
-  final double hoursRate;
-  final List<double> hoursWeek;
-  final double tipsWeek;
+  double hoursRate;
+  bool isStudent;
+  /*List<double> hoursWeek;
+  double tipsWeek;*/
 
   Employee({
     required this.name,
     required this.hoursRate,
-    required this.hoursWeek,
-    required this.tipsWeek});
+    required this.isStudent,});
 
-  //#region === METHODS ===
+  /*/#region === METHODS ===
   double sumHoursWeek(){
 
     return hoursWeek.fold<double>(
@@ -42,7 +42,9 @@ class Employee{
     return hoursRate * sumHoursWeek() + (useTips ? tipsWeek : 0);
   }
 
-  //#endregion
+
+
+  *///#endregion
 
   factory Employee.fromFirestore(DocumentSnapshot doc) {
     Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
@@ -55,22 +57,22 @@ class Employee{
     }
 
     // Safely parse hoursWeek
-    List<double> hoursWeek = [];
+    /*List<double> hoursWeek = [];
     if (data['hoursWeek'] is List) {
       hoursWeek = (data['hoursWeek'] as List)
           .map((e) => safeParseDouble(e))
           .toList();
-    }
+    }*/
 
     return Employee(
       name: (data['name'] as String?) ?? '',
       hoursRate: safeParseDouble(data['hoursRate']),
-      hoursWeek: hoursWeek,
-      tipsWeek: safeParseDouble(data['tipsWeek']),
+      isStudent: data['isStudent'] ?? false,
     );
   }
 
 }
+
 
 class SalaryHomePage extends StatefulWidget {
   const SalaryHomePage({super.key, required this.title});
@@ -99,9 +101,8 @@ Future<void> addEmployee(Employee employee) async {
   try {
     await db.collection('Employees').add({
       'name': employee.name,
+      'isStudent': employee.isStudent,
       'hoursRate': employee.hoursRate,
-      'hoursWeek': employee.hoursWeek,
-      'tipsWeek': employee.tipsWeek,
     });
     print('Employee added successfully');
   } catch (e) {
@@ -234,6 +235,38 @@ class _SalaryHomePageState extends State<SalaryHomePage> {
       },
     );
   }
+
+  Widget employeeCard(int index){
+    return ListTile(
+      title: Text(
+        empListFiltered[index].name,
+        style: const TextStyle(fontWeight: FontWeight.bold),
+      ),
+      /*
+      subtitle: Text(
+        '£${empListFiltered[index].hoursRate.toStringAsFixed(2)} hourly || '
+            '${dayOrWeek ? empListFiltered[index].sumHoursWeek().toStringAsFixed(2)
+            : empListFiltered[index].hoursWeek[(_selectedDay?.weekday ?? 1)-1].toStringAsFixed(2)} hours worked',
+
+        style: const TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 14,
+        ),
+      ),
+      trailing: Text(
+          '£${dayOrWeek ? empListFiltered[index].sumEarnedWeek(useTips: false).toStringAsFixed(2) : (empListFiltered[index]
+              .hoursWeek[(_selectedDay?.weekday ?? 1)-1] * empListFiltered[index].hoursRate).toStringAsFixed(2)} || '
+              '£${empListFiltered[index].tipsWeek.toStringAsFixed(2)} tips/service',
+
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          )
+      ),
+       */
+    );
+  }
+
 //#endregion
 
   @override
@@ -320,34 +353,7 @@ class _SalaryHomePageState extends State<SalaryHomePage> {
 
                                   ),
 
-                                  child: ListTile(
-                                    title: Text(
-                                      empListFiltered[index].name,
-                                      style: const TextStyle(fontWeight: FontWeight.bold),
-                                    ),
-
-                                    subtitle: Text(
-                                       '£${empListFiltered[index].hoursRate.toStringAsFixed(2)} hourly || '
-                                           '${/*dayOrWeek ?*/ empListFiltered[index].sumHoursWeek().toStringAsFixed(2)} hours worked',
-
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                    trailing: Text(
-                                      '£${empList[index].sumEarnedWeek(useTips: false).toStringAsFixed(2)} || '
-                                        '£${empList[index].tipsWeek.toStringAsFixed(2)} tips/service',
-
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16,
-                                      )
-                                    ),
-
-
-
-                                  ),
+                                  child: employeeCard(index),
                                   // You can customize the ListTile or use any other widget to display your data
                                 );
                               },
