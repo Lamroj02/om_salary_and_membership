@@ -1,31 +1,25 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
+import 'package:om_salary_and_membership/records.dart';
+import 'dart:math';
+import 'dart:async';
 
 //Instantiates firestore database for use within flutter application
 final db = FirebaseFirestore.instance;
-List<Employee> tempList = [
-    Employee(name: 'Abbie' ,hoursRate: 14.96, isStudent: true),
-    Employee(name: 'Abby' ,hoursRate: 13.59, isStudent: false ),
-    Employee(name: 'Bella' ,hoursRate: 10.25, isStudent: true),
-    Employee(name: 'Connor' ,hoursRate: 13.98, isStudent: false),
-    Employee(name: 'Damon' ,hoursRate: 8.30 , isStudent: true),
-    Employee(name: 'Emma' ,hoursRate: 7.20 , isStudent: false),
-    Employee(name: 'Fin' ,hoursRate: 8.30 , isStudent: false),
-    Employee(name: 'Gabriel' ,hoursRate: 7.20 , isStudent: false),
-];
+
 
 
 /// === CLASSES === ///
 //#region
 class Employee{
+  final String id;
   final String name;
   double hoursRate;
   bool isStudent;
-  /*List<double> hoursWeek;
-  double tipsWeek;*/
 
   Employee({
+    required this.id,
     required this.name,
     required this.hoursRate,
     required this.isStudent,});
@@ -56,15 +50,9 @@ class Employee{
       return 0.0;
     }
 
-    // Safely parse hoursWeek
-    /*List<double> hoursWeek = [];
-    if (data['hoursWeek'] is List) {
-      hoursWeek = (data['hoursWeek'] as List)
-          .map((e) => safeParseDouble(e))
-          .toList();
-    }*/
 
     return Employee(
+      id: doc.id,
       name: (data['name'] as String?) ?? '',
       hoursRate: safeParseDouble(data['hoursRate']),
       isStudent: data['isStudent'] ?? false,
@@ -72,6 +60,7 @@ class Employee{
   }
 
 }
+
 
 
 class SalaryHomePage extends StatefulWidget {
@@ -121,41 +110,201 @@ Future<void> updateEmployee(String docId, Map<String, dynamic> updatedFields) as
   }
 }
 
+DateTime getFirstDateOfCurrentWeek(DateTime date) {
+  int currentWeekday = date.weekday;
+  DateTime firstDateOfWeek = date.subtract(Duration(days: currentWeekday - 1));
+
+  return DateTime(firstDateOfWeek.year, firstDateOfWeek.month, firstDateOfWeek.day);
+}
+
+Employee? findEmployeeById(List<Employee> empList, String searchId) {
+  return empList.firstWhere(
+        (employee) => employee.id == searchId,
+  );
+}
+
+
+
+Map<String,dynamic> findEmployeesRecord(List<Employee> empListFiltered, int index){
+  print("A");
+  return
+    Records.selectedWeek.employeesWorked.firstWhere((employee) => employee['employeeID'] == empListFiltered[index].id,
+
+      orElse: null,
+    );
+}
+
 
 //#endregion
 
 class _SalaryHomePageState extends State<SalaryHomePage> {
 
   List<Employee> empList = [];
-
+  List<Employee> empListWorked = [];
   List<Employee> empListFiltered = [];
-
+  int catchCount = 0;
   bool dayOrWeek = true;
   String dayOfWeek = '';
 
   //Calendar Variables
-  DateTime? _selectedDay;
+  DateTime _selectedDay = DateTime.now();
   DateTime _focusedDay = DateTime.now();
   CalendarFormat _calendarFormat = CalendarFormat.month;
+
 
   /// === OVERRIDES === ///
   //#region
   @override
   void initState() {
     super.initState();
-    dbActions();
+
+    dbFetchEmployees().then((_){
+      findWorkingEmployees();
+    });
   }
 
-  Future<void> dbActions() async {
+ @override
+  void dispose(){
+    super.dispose();
+  }
+
+  Future<void> dbFetchEmployees() async {
     try {
       final QuerySnapshot event = await db.collection("Employees").get();
       setState(() {
         empList = event.docs.map((doc) => Employee.fromFirestore(doc)).toList();
       });
-      empListFiltered = empList;
+      //addTestRecords('2024-07-15');
     } catch (e) {
-      print("Error fetching employee data: $e");
+      print("Error fetching employee data: $e ~ dbFetchEmployees(else)");
       // Handle the error appropriately, e.g., show a user-friendly message
+    }
+  }
+
+  Future<void> dbFetchRecord(String documentId) async {
+    try {
+      final DocumentSnapshot doc = await db.collection("Records").doc(documentId).get();
+      if (doc.exists) {
+        setState(() {
+          Records.selectedWeek = WeekRecord.fromFirestore(doc);
+        });
+      }
+      else {
+        print("No such document! ~ dbFetchRecord(else)");
+        // Handle the case where the document doesn't exist, e.g., show a user-friendly message
+        setState((){
+          Records.selectedWeek = WeekRecord();
+        });
+      }
+    }
+    catch (e) {
+      catchCount++;
+      print("Error fetching record data: $e ~ dbFetchRecord(catch) - catchCount: $catchCount");
+      // Handle the error appropriately, e.g., show a user-friendly message
+      setState((){
+        Records.selectedWeek = WeekRecord();
+      });
+    }
+  }
+
+  void findWorkingEmployees() async {
+    empListWorked = [];
+    await dbFetchRecord(getFirstDateOfCurrentWeek(_selectedDay).toString().split(' ')[0]);
+
+    for (int i = 0; i < Records.selectedWeek.employeesWorked.length; i++){
+      for(int j = 0; j < empList.length; j++){
+        if(empList[j].id == Records.selectedWeek.employeesWorked[i]['employeeID']){
+          empListWorked.add(empList[j]);
+        }
+      }
+    }
+
+    if (!mounted) return;
+    setState(() {
+      empListFiltered = empListWorked;
+    });
+  }
+
+  String weekIndexToDay(int weekday){
+    switch(weekday){
+      case 1:
+        return 'Monday';
+      case 2:
+        return 'Tuesday';
+      case 3:
+        return 'Wednesday';
+      case 4:
+        return 'Thursday';
+      case 5:
+        return 'Friday';
+      case 6:
+        return 'Saturday';
+      default:
+        return 'Sunday';
+    }
+  }
+
+  Future<void> addTestRecords(String cursorTime) async {
+    try {
+      int card = Random().nextInt(1000) + 50;
+      int cash = Random().nextInt(1000) + 50;
+      double serviceCharge = (card + cash) * 0.1;
+      double vat = (card + cash + serviceCharge) * 0.2;
+
+      List<String> employeeIDs = [
+        empList[Random().nextInt(empList.length)].id,
+        empList[Random().nextInt(empList.length)].id,
+        empList[Random().nextInt(empList.length)].id,
+        empList[Random().nextInt(empList.length)].id,
+      ];
+
+      double netTotal = (card + cash + (serviceCharge * 0.2)) - vat;
+      double tipTotal = (Random().nextDouble() * 200).truncateToDouble() + 50;
+
+
+      db.collection('Records').doc(cursorTime).set({
+          'Payments': {
+            'VAT': vat,
+            'card': card,
+            'cash': cash,
+            'serviceCharge': serviceCharge,
+          },
+          'employeesWorked': [{
+            'employeeID': employeeIDs[0],
+            'hoursRate': (Random().nextDouble()*5).truncateToDouble()+7,
+            'hoursWorked': (Random().nextDouble()*30).truncateToDouble()+7,
+            'tipDistribution': 0.0,
+            'workedDays': [false, false, false, false, false, false, false],
+          },
+          {
+            'employeeID': employeeIDs[1],
+            'hoursRate': (Random().nextDouble()*5).truncateToDouble()+7,
+            'hoursWorked': (Random().nextDouble()*30).truncateToDouble()+7,
+            'tipDistribution': 0.0,
+            'workedDays': [false, false, false, false, false, false, false],
+          },
+          {
+            'employeeID': employeeIDs[2],
+            'hoursRate': (Random().nextDouble()*5).truncateToDouble()+7,
+            'hoursWorked': (Random().nextDouble()*30).truncateToDouble()+7,
+            'tipDistribution': 0.0,
+            'workedDays': [false, false, false, false, false, false, false],
+          },
+          {
+            'employeeID': employeeIDs[3],
+            'hoursRate': (Random().nextDouble()*5).truncateToDouble()+7,
+            'hoursWorked': (Random().nextDouble()*30).truncateToDouble()+7,
+            'tipDistribution': 0.0,
+            'workedDays': [false, false, false, false, false, false, false],
+          }
+        ],
+        'netTotal': netTotal,
+        'tipTotal': tipTotal,
+      });
+      print('Record added successfully');
+
+    }catch (e) {
+      print('Error adding Record: $e');
     }
   }
   //#endregion
@@ -187,6 +336,7 @@ class _SalaryHomePageState extends State<SalaryHomePage> {
           onDaySelected: (selectedDay, focusedDay) {
             setState(() {
               _selectedDay = selectedDay;
+              findWorkingEmployees();
               _focusedDay = focusedDay; // update `_focusedDay` here as well
             });
           },
@@ -211,26 +361,26 @@ class _SalaryHomePageState extends State<SalaryHomePage> {
     );
   }
 
-  Widget employeeSearchBar(){
+  Widget employeeSearchBar() {
     return TextField(
       decoration: const InputDecoration(
         hintText: 'Search member...',
         prefixIcon: Icon(Icons.search),
       ),
-      onChanged: (value) {
+
+      onSubmitted: (value) {
         // Implement the filtering logic here
+
         if (value.isNotEmpty) {
           setState(() {
-            empListFiltered = empList
+            empListFiltered = empListWorked
                 .where((member) =>
                 member.name.toLowerCase().contains(
                     value.toLowerCase()))
                 .toList();
           });
         }else{
-          setState(() {
-            empListFiltered = empList;
-          });
+          print("empty!!!");
         }
       },
     );
@@ -242,11 +392,10 @@ class _SalaryHomePageState extends State<SalaryHomePage> {
         empListFiltered[index].name,
         style: const TextStyle(fontWeight: FontWeight.bold),
       ),
-      /*
+
       subtitle: Text(
-        '£${empListFiltered[index].hoursRate.toStringAsFixed(2)} hourly || '
-            '${dayOrWeek ? empListFiltered[index].sumHoursWeek().toStringAsFixed(2)
-            : empListFiltered[index].hoursWeek[(_selectedDay?.weekday ?? 1)-1].toStringAsFixed(2)} hours worked',
+        '£${findEmployeesRecord(empListFiltered, index)['hoursRate'].toStringAsFixed(2)} hourly || '
+            '${findEmployeesRecord(empListFiltered, index)['hoursWorked'].toStringAsFixed(2)} hours worked',
 
         style: const TextStyle(
           fontWeight: FontWeight.bold,
@@ -254,19 +403,28 @@ class _SalaryHomePageState extends State<SalaryHomePage> {
         ),
       ),
       trailing: Text(
-          '£${dayOrWeek ? empListFiltered[index].sumEarnedWeek(useTips: false).toStringAsFixed(2) : (empListFiltered[index]
-              .hoursWeek[(_selectedDay?.weekday ?? 1)-1] * empListFiltered[index].hoursRate).toStringAsFixed(2)} || '
-              '£${empListFiltered[index].tipsWeek.toStringAsFixed(2)} tips/service',
+          '£${(findEmployeesRecord(empListFiltered, index)['hoursRate']
+              * findEmployeesRecord(empListFiltered, index)['hoursWorked']).toStringAsFixed(2)} || '
+              '£${findEmployeesRecord(empListFiltered, index)['tipDistribution'].toStringAsFixed(2)} tips/service',
 
           style: const TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 16,
           )
       ),
-       */
+
     );
   }
 
+  Widget errorCard(String errorMessage){
+    print("Error occured ~ errorCard");
+    return ListTile(
+      title: Text(
+        errorMessage,
+        style: const TextStyle(fontWeight: FontWeight.bold),
+      ),
+    );
+  }
 //#endregion
 
   @override
@@ -304,7 +462,7 @@ class _SalaryHomePageState extends State<SalaryHomePage> {
               tabs: [
                 Tab(text: 'Overview'),
                 Tab(text: 'Employees'),
-                Tab(text: 'Set Pay'),
+                Tab(text: 'Track Work'),
               ],
             ),
           ),
@@ -340,7 +498,7 @@ class _SalaryHomePageState extends State<SalaryHomePage> {
                         SizedBox(
                           width: 0.5 * screenWidth,
                           height: screenHeight * 0.6,
-                          child:
+                          child: empListFiltered.isEmpty ? errorCard('No employees worked the selected ${dayOrWeek ? 'week':'day'}!') :
                             ListView.separated(
                               itemCount: empListFiltered.length,
                               itemBuilder: (BuildContext context, int index) {
