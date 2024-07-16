@@ -142,6 +142,7 @@ class _SalaryHomePageState extends State<SalaryHomePage> {
   List<Employee> empList = [];
   List<Employee> empListWorked = [];
   List<Employee> empListFiltered = [];
+  late Employee _selectedEmployee;
   int catchCount = 0;
   bool dayOrWeek = true;
   String dayOfWeek = '';
@@ -150,6 +151,7 @@ class _SalaryHomePageState extends State<SalaryHomePage> {
   DateTime _selectedDay = DateTime.now();
   DateTime _focusedDay = DateTime.now();
   CalendarFormat _calendarFormat = CalendarFormat.month;
+
 
 
   /// === OVERRIDES === ///
@@ -311,13 +313,21 @@ class _SalaryHomePageState extends State<SalaryHomePage> {
 
   /// === WIDGETS === ///
 //#region
+
+  // =<START>= Full-Feature Widgets =<START>= //
+  //A widget that provides a whole feature
+
   Widget prefixedCalendar({double screenWidth = 300}){
 
     return Container(
       padding: const EdgeInsets.all(7),
       margin: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-          border: Border.all( color: Colors.black45)
+          color: Colors.lightGreen.shade50,
+          border: Border.all(
+            color: Colors.lightGreen.shade500,
+            width: 10,
+          )
       ),
       child:
       SizedBox(
@@ -328,6 +338,41 @@ class _SalaryHomePageState extends State<SalaryHomePage> {
           firstDay: DateTime.utc(2023,07,26),
           lastDay: DateTime.now(),
           focusedDay: _focusedDay,
+
+          calendarStyle:
+            CalendarStyle(
+
+              defaultTextStyle:
+                const TextStyle(
+                  fontWeight: FontWeight.w400,
+                  fontSize: 18,
+                ),
+              selectedTextStyle:
+                const TextStyle(
+                fontWeight: FontWeight.w400,
+                fontSize: 18,
+              ),
+              weekendTextStyle:
+                const TextStyle(
+                fontWeight: FontWeight.w400,
+                fontSize: 18,
+              ),
+              todayTextStyle:
+                const TextStyle(
+                fontWeight: FontWeight.w400,
+                fontSize: 18,
+              ),
+
+              selectedDecoration:
+                BoxDecoration(
+                  color: Colors.lightGreen.shade200,
+                ),
+              todayDecoration:
+                BoxDecoration(
+                  color: Colors.green.shade300,
+                ),
+
+            ),
 
           //Interactivity for selection
           selectedDayPredicate: (day) {
@@ -385,7 +430,10 @@ class _SalaryHomePageState extends State<SalaryHomePage> {
       },
     );
   }
+  // =<ENDED>= Feature Widgets =<ENDED>= //
 
+
+  // =<START>= Component Widgets =<START>= //
   Widget employeeCard(int index){
     return ListTile(
       title: Text(
@@ -425,6 +473,14 @@ class _SalaryHomePageState extends State<SalaryHomePage> {
       ),
     );
   }
+  // =<ENDED>= Component Widgets =<ENDED>= //
+
+
+  // =<START>= Part-Feature Widgets =<START>= //
+  //A widget that is only a small part of a full feature.
+
+
+  // =<ENDED>= Part-Feature Widgets =<ENDED>= //
 //#endregion
 
   @override
@@ -461,7 +517,7 @@ class _SalaryHomePageState extends State<SalaryHomePage> {
               indicatorWeight: 5,
               tabs: [
                 Tab(text: 'Overview'),
-                Tab(text: 'Employees'),
+                Tab(text: 'Employee Info'),
                 Tab(text: 'Track Work'),
               ],
             ),
@@ -469,6 +525,10 @@ class _SalaryHomePageState extends State<SalaryHomePage> {
 
           body: TabBarView(
             children: [
+
+
+
+
               //OVERVIEW TAB
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -479,6 +539,7 @@ class _SalaryHomePageState extends State<SalaryHomePage> {
                     margin: const EdgeInsets.all(16.0),
                     padding: const EdgeInsets.all(4),
                     decoration: BoxDecoration(
+                      color: Colors.lightGreen.shade50,
                       borderRadius: BorderRadius.circular(10.0),
                       border: Border.all(
                         color: Colors.lightGreen.shade500, // Set the border color here
@@ -556,7 +617,81 @@ class _SalaryHomePageState extends State<SalaryHomePage> {
 
               //EMPLOYEES TAB
               Row(
-                //Refer to draw.io wireframe
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  //Left-hand side
+                  Align(                    //ALIGN TO CENTRE-LEFT
+                    alignment: Alignment.centerLeft,
+                    child:
+                      Container(            //DECORATION
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            color: Colors.lightGreen.shade500, // Set the border color here
+                            width: 10.0,
+                          ),
+                          borderRadius: BorderRadius.circular(10.0),
+                          color: Colors.lightGreen.shade50,
+                        ),
+                        margin: const EdgeInsets.all(16.0),
+                        padding: const EdgeInsets.all(4),
+                        child:
+                            Column(         //STRUCTURE WITHIN CONTAINER
+                              children: [
+                                SizedBox(   //CONTROL DIMENSIONS OF SEARCH BAR
+                                  width: 0.37 * screenWidth,
+                                  height: 0.1 * screenHeight,
+                                  child:
+                                  TextField( //SEARCH BAR WIDGET
+                                      decoration:
+                                      const InputDecoration(
+                                        hintText: 'Search employees...',
+                                        prefixIcon: Icon(Icons.search),
+                                      ),
+                                      onChanged: (value){
+                                        empListFiltered = empList.where((employee) => employee.name.contains(value)).toList();
+                                      }
+                                  ),
+                                ),
+
+                                GridView.builder(
+                                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: 3, // Number of columns in the grid
+                                  ),
+                                  itemCount: empListFiltered.length,
+                                  itemBuilder: (BuildContext context, int index) {
+                                    return GestureDetector(
+                                      onTap: () {
+                                        setState(() {
+
+                                          if (_selectedEmployee.id == empListFiltered[index].id) {
+                                            _selectedEmployee = Employee(id: '', name: '', hoursRate: 0, isStudent: false);
+                                          }
+                                          else {
+                                            _selectedEmployee = empListFiltered[index];
+                                          }
+
+                                          //updateControllers(
+                                          //  name: selectedMember.name,
+                                          //  prev: selectedMember.points.toString(),
+                                          //  voucher: selectedMember.voucher,
+                                          //);
+                                        });
+                                      },
+                                      //child: _buildGridItem(filteredMembers[index]),
+                                    );
+                                  },
+                                ),
+                              ],
+                            )
+
+                      ),
+                  ),
+
+                  //Right-hand side
+                  Column(
+
+                  ),
+                ],
               ),
 
               //PAY TAB
