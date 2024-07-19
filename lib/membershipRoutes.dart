@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
+//Instantiates firestore database for use within flutter application
+final db = FirebaseFirestore.instance;
 
 class MembershipHomePage extends StatefulWidget {
   const MembershipHomePage({super.key, required this.title});
+
 
   // This widget is the home page of your application. It is stateful, meaning
   // that it has a State object (defined below) that contains fields that affect
@@ -24,41 +28,88 @@ class MembershipHomePage extends StatefulWidget {
   /// USER CLASSES ///
   //#region
 
-class Member{
-  String name,id;
+class Member {
+  String name, id;
+  String email, contactNum;
   int points;
-  String voucher;
+  DateTime voucher;
 
-  Member(this.name, this.id, this.points, {this.voucher = ''});
+  Member({
+    this.name = '',
+    this.id = '',
+    this.email = '',
+    this.contactNum = '',
+    this.points = 0,
+    required this.voucher,
+  });
+
+  factory Member.fromFirestore(DocumentSnapshot doc) {
+    Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+
+    // Helper function to safely parse a value to double
+    /*double safeParseDouble(dynamic value) {
+      if (value is num) return value.toDouble();
+      if (value is String) return double.tryParse(value) ?? 0.0;
+      return 0.0;
+    }*/
+
+
+    return Member(
+      id: doc.id,
+      name: (data['name'] as String?) ?? '',
+      email: (data['email'] as String?) ?? '',
+      contactNum: (data['contactNumber'] as String?) ?? '',
+      points: (data['points'] as int?) ?? 0,
+      voucher: (data['voucherExpiry'] as Timestamp).toDate(),
+    );
+  }
 }
   //#endregion
+
+
+Future<void> uploadMember(Member member) async {
+  try {
+    await db.collection('Members').doc(member.id).set({
+      'name': member.name,
+      'email': member.email,
+      'contactNumber': member.contactNum,
+      'points': member.points,
+      'voucherExpiry': member.voucher
+    });
+    print('Member added successfully');
+  } catch (e) {
+    print('Error adding Member: $e');
+  }
+}
 
 class _MembershipHomePageState extends State<MembershipHomePage> {
 
   /// VARIABLES ///
   //#region
+  /*
   List<Member> sampleMembers = [
-    Member("Alice", '001', 150),
-    Member("Bob",  '008', 120),
-    Member("Carol",  '018', 180),
-    Member("David",  '025', 90),
-    Member("Eve",  '035', 160),
-    Member("Frank",  '042', 130),
-    Member("Grace",  '052', 170),
-    Member("Harry",  '059', 110),
-    Member("Ivy",  '069', 140),
-    Member("Jack",  '076', 170),
-    Member("Karen",  '086', 100),
-    Member("Larry",  '093', 190),
-    Member("Megan",  '100', 110),
-    Member("Nancy",  '107', 140),
-    Member("Oscar",  '117', 180),
-    Member("Sam Tangerine", '207',100),
-    Member("Polly Amorus", '115',100)
-  ];
+    Member("Alice", '001', 'Alice20@gmail.com', '01214097350', 150, DateTime.now()),
+    Member("Bob",  '008', 'Bob20@gmail.com', '01214097350', 120, DateTime.now()),
+    Member("Carol",  '018', 'Carol20@gmail.com', '01214097350',180, DateTime.now()),
+    Member("David",  '025', 'David20@gmail.com', '01214097350',90, DateTime.now()),
+    Member("Eve",  '035', 'Eve20@gmail.com', '01214097350',160, DateTime.now()),
+    Member("Frank",  '042', 'Frank20@gmail.com', '01214097350',130, DateTime.now()),
+    Member("Grace",  '052', 'Grace20@gmail.com', '01214097350',170, DateTime.now()),
+    Member("Harry",  '059', 'Harry20@gmail.com', '01214097350',110, DateTime.now()),
+    Member("Ivy",  '069', 'Ivy20@gmail.com', '01214097350',140, DateTime.now()),
+    Member("Jack",  '076', 'Jack20@gmail.com', '01214097350',170, DateTime.now()),
+    Member("Karen",  '086', 'Karen20@gmail.com', '01214097350',100, DateTime.now()),
+    Member("Larry",  '093', 'Larry20@gmail.com', '01214097350',190, DateTime.now()),
+    Member("Megan",  '100', 'Megan20@gmail.com', '01214097350',110, DateTime.now()),
+    Member("Nancy",  '107', 'Nancy20@gmail.com', '01214097350',140, DateTime.now()),
+    Member("Oscar",  '117', 'Oscar20@gmail.com', '01214097350',180, DateTime.now()),
+    Member("Sam Tangerine", '207','Sam-TangerGOD20@gmail.com', '01214097350',100, DateTime.now()),
+    Member("Polly Amorus", '115','Polly20@gmail.com', '01214097350',100, DateTime.now())
+  ];*/ //
+  List<Member> rawMembers = [];
   List<Member> filteredMembers = [];
   late TextEditingController nameController, pointController,tdPointController,sumController,voucherController;
-  Member selectedMember = Member('','',0);
+  Member selectedMember = Member(voucher: DateTime.now());
   late bool gotVoucher;
   late Color cancelColor;
   //#endregion
@@ -70,7 +121,8 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
   @override
   void initState() {
     super.initState();
-    filteredMembers = sampleMembers;
+    dbFetchMembers();
+
     nameController = TextEditingController(text: '');
     pointController = TextEditingController(text: '');
     tdPointController = TextEditingController(text: '');
@@ -92,6 +144,23 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
     super.dispose();
   }
   //#endregion
+
+  /// === FIRESTORE METHODS === ///
+  //#region
+  Future<void> dbFetchMembers() async {
+    try {
+      final QuerySnapshot event = await db.collection("Members").get();
+      setState(() {
+        rawMembers = event.docs.map((doc) => Member.fromFirestore(doc)).toList();
+      });
+      filteredMembers = rawMembers;
+    } catch (e) {
+      print("Error fetching employee data: $e ~ dbFetchEmployees(else)");
+      // Handle the error appropriately, e.g., show a user-friendly message
+    }
+  }
+  //#endregion
+
 
   /// Event Listeners ///
   //Triggers on member deselection
@@ -120,10 +189,10 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
       sumController.text = sum.toString();
       if (sum > 199 && !gotVoucher) {
         gotVoucher = true;
-        selectedMember.voucher = DateTime.now().add(const Duration(days:31)).toString().split(' ')[0];
+        selectedMember.voucher = DateTime.now().add(const Duration(days:31));
       }
 
-      voucherController = TextEditingController(text: (gotVoucher ? selectedMember.voucher : 'Inactive'));
+      voucherController = TextEditingController(text: (gotVoucher ? selectedMember.voucher.toString().split(' ')[0] : 'Inactive'));
     });
   }
 
@@ -147,9 +216,9 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
   //#region
   void pointsOverflow({String compID = ''}){
     compID = compID == '' ? selectedMember.id : compID;
-    for(int i = 0; i < sampleMembers.length; i++){
-      if (compID == sampleMembers[i].id){
-        sampleMembers[i].points = int.parse(sumController.text) > 199 ?
+    for(int i = 0; i < rawMembers.length; i++){
+      if (compID == rawMembers[i].id){
+        rawMembers[i].points = int.parse(sumController.text) > 199 ?
         int.parse(sumController.text) - 200 : int.parse(sumController.text); //Change required for else statement
       }
     }
@@ -158,8 +227,8 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
   void deleteMember() {
     if (cancelColor == Colors
         .redAccent) { // If the button is already red, delete selected member
-      for (int i = 0; i < sampleMembers.length; i++) {
-        if (selectedMember.id == sampleMembers[i].id) {
+      for (int i = 0; i < rawMembers.length; i++) {
+        if (selectedMember.id == rawMembers[i].id) {
           for (int j = 0; j < filteredMembers.length; j++) {
             if (selectedMember.id == filteredMembers[j].id) {
               filteredMembers.removeAt(j);
@@ -167,8 +236,8 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
             }
           }
           setState(() {
-            sampleMembers.removeAt(i);
-            selectedMember = Member('', '', 0);
+            rawMembers.removeAt(i);
+            selectedMember = Member(voucher: DateTime.now());
             updateControllers();
             _eventDeselect();
           });
@@ -185,23 +254,23 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
 
   void addMember(){
     setState(() {
-      selectedMember = Member("",'',0);
+      selectedMember = Member(voucher: DateTime.now());
     });
     int i = 1; //stores last checked id
-    for (int j = 0; j < sampleMembers.length; j++){ //looks for the lowest available id
-      if (int.parse(sampleMembers[j].id) != i){ //condition if id found is not exactly 1 higher than id prior
+    for (int j = 0; j < rawMembers.length; j++){ //looks for the lowest available id
+      if (int.parse(rawMembers[j].id) != i){ //condition if id found is not exactly 1 higher than id prior
         selectedMember.id = ' '; //placeholder to indicate available id found
         break;
       }
       i++;
     }
     if (selectedMember.id == ''){ //if prior search didn't find an id, give end id
-      i = int.parse(sampleMembers[sampleMembers.length - 1].id);
+      i = int.parse(rawMembers[rawMembers.length - 1].id);
     }
     selectedMember.id = i < 10 ? '00$i' : i > 99 ?  '$i' : '0$i'; //actual id being given using i
-    Member temp = Member('',selectedMember.id,0);
-    selectedMember = Member('','',0);
-    sampleMembers.add(temp);
+    Member temp = Member(id: selectedMember.id , voucher: DateTime.now());
+    selectedMember = Member(voucher: DateTime.now());
+    rawMembers.add(temp);
     updateControllers();
 
   }
@@ -214,7 +283,7 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
 
   @override
   Widget build(BuildContext context) {
-    sampleMembers.sort((a, b) => a.id.compareTo(b.id));
+    rawMembers.sort((a, b) => a.id.compareTo(b.id));
     double screenHeight = MediaQuery.of(context).size.height;
     double screenWidth  = MediaQuery.of(context).size.width;
     // This method is rerun every time setState is called, for instance as done
@@ -316,18 +385,18 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
                               // Implement the filtering logic here
                               if (value.isNotEmpty) {
                                 setState(() {
-                                  filteredMembers = sampleMembers
+                                  filteredMembers = rawMembers
                                       .where((member) =>
                                       member.name.toLowerCase().contains(
                                           value.toLowerCase()))
                                       .toList() +
-                                    sampleMembers
+                                      rawMembers
                                     .where((member) =>
                                     member.id.contains(value)).toList();
                                 });
                               }else{
                                 setState(() {
-                                  filteredMembers = sampleMembers;
+                                  filteredMembers = rawMembers;
                                 });
                               }
                             },
@@ -352,7 +421,7 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
 
                             if (selectedMember.id == filteredMembers[index].id) {
                             _eventDeselect();
-                            selectedMember = Member("","",0);
+                            selectedMember = Member(voucher: DateTime.now());
                             }
                             else {
                               _eventSelect();
@@ -362,7 +431,7 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
                             updateControllers(
                               name: selectedMember.name,
                               prev: selectedMember.points.toString(),
-                              voucher: selectedMember.voucher,
+                              voucher: selectedMember.voucher.toString().split(' ')[0],
                             );
                           });
                         },
@@ -520,7 +589,7 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
 
                       setState(() {
                         gotVoucher = false;
-                        selectedMember.voucher = '';
+                        selectedMember.voucher = DateTime.now();
                         updateSum();
                       });
                     },

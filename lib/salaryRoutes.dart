@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:om_salary_and_membership/records.dart';
 import 'dart:math';
@@ -7,38 +8,39 @@ import 'dart:async';
 
 //Instantiates firestore database for use within flutter application
 final db = FirebaseFirestore.instance;
-
-
+/*
+List<Employee> tempList = [
+  Employee( id: 'Test_Employee', name: 'Test Employee', hoursRate: 11, isPostGrad: false, studentPlan: 0),
+  Employee( name: 'Beth', hoursRate: 11, isPostGrad: false, studentPlan: 0),
+  Employee( name: 'Beth', hoursRate: 11, isPostGrad: false, studentPlan: 0),
+  Employee( name: 'Beth', hoursRate: 11, isPostGrad: false, studentPlan: 0),
+  Employee( name: 'Beth', hoursRate: 11, isPostGrad: false, studentPlan: 0),
+  Employee( name: 'Beth', hoursRate: 11, isPostGrad: false, studentPlan: 0),
+  Employee( name: 'Beth', hoursRate: 11, isPostGrad: false, studentPlan: 0),
+  Employee( name: 'Beth', hoursRate: 11, isPostGrad: false, studentPlan: 0),
+  Employee( name: 'Beth', hoursRate: 11, isPostGrad: false, studentPlan: 0),
+  Employee( name: 'Beth', hoursRate: 11, isPostGrad: false, studentPlan: 0),
+];*/
 
 /// === CLASSES === ///
 //#region
 class Employee{
   final String id;
-  final String name;
+  String name;
   double hoursRate;
-  bool isStudent;
+  int studentPlan;
+  bool isPostGrad;
 
   Employee({
     required this.id,
     required this.name,
     required this.hoursRate,
-    required this.isStudent,});
-
-  /*/#region === METHODS ===
-  double sumHoursWeek(){
-
-    return hoursWeek.fold<double>(
-        0, (previousValue, element) => previousValue + element
-    );
-  }
-
-  double sumEarnedWeek({bool useTips = true}){
-    return hoursRate * sumHoursWeek() + (useTips ? tipsWeek : 0);
-  }
+    required this.studentPlan,
+    required this.isPostGrad
+  });
 
 
 
-  *///#endregion
 
   factory Employee.fromFirestore(DocumentSnapshot doc) {
     Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
@@ -55,12 +57,14 @@ class Employee{
       id: doc.id,
       name: (data['name'] as String?) ?? '',
       hoursRate: safeParseDouble(data['hoursRate']),
-      isStudent: data['isStudent'] ?? false,
+      studentPlan: data['studentPlan'] ?? 0,
+      isPostGrad: data['isPostGrad'] ?? false,
     );
   }
 
 }
 
+//#endregion
 
 
 class SalaryHomePage extends StatefulWidget {
@@ -90,7 +94,7 @@ Future<void> addEmployee(Employee employee) async {
   try {
     await db.collection('Employees').add({
       'name': employee.name,
-      'isStudent': employee.isStudent,
+      'isStudent': employee.studentPlan,
       'hoursRate': employee.hoursRate,
     });
     print('Employee added successfully');
@@ -126,31 +130,97 @@ Employee? findEmployeeById(List<Employee> empList, String searchId) {
 
 
 Map<String,dynamic> findEmployeesRecord(List<Employee> empListFiltered, int index){
-  print("A");
   return
     Records.selectedWeek.employeesWorked.firstWhere((employee) => employee['employeeID'] == empListFiltered[index].id,
-
-      orElse: null,
+      orElse: () => {'hoursWorked': 0}
     );
 }
 
+double loanRepaymentDue({int planThreshold = 0, bool postGrad = false, double hoursRate = 0, double hoursWorked = 0}){
+  double repayment = 0;
+  double grossWeek = hoursRate * hoursWorked;
+  print('grossWeek: $grossWeek');
+  const int pgThreshold = 403;
+  if (planThreshold == 0 && !postGrad 
+      || postGrad && grossWeek <= pgThreshold 
+      || planThreshold > 0 && grossWeek <= planThreshold
+  ){
+    print('repayment: $repayment');
+    return 0;
+  }
+  if(postGrad && grossWeek > 403){
+    repayment += (grossWeek - pgThreshold) * 0.06;
+  }
+  if(planThreshold > 0 && grossWeek > planThreshold){
+    repayment += (grossWeek - planThreshold) * 0.09;
+  }
+  print(repayment);
+  return repayment;
+}
+
+double incomeTaxDue({double hoursRate = 0, double hoursWorked = 0}){
+  double grossWeek = hoursRate * hoursWorked;
+  if (grossWeek <= 241.73){
+    return 0;
+  }
+  double taxed = grossWeek - 241.73;
+  if (taxed > 725){
+    taxed = ((grossWeek - 725) * 0.4) + (725 * 0.2);
+  }
+  else{
+    taxed *= 0.2;
+  }
+
+  return taxed;
+}
+
+double nicDue({double hoursRate = 0, double hoursWorked = 0}){
+  double grossWeek = hoursRate * hoursWorked;
+  if (grossWeek < 242){
+    return 0;
+  }
+  double contribution = 0;
+  if (grossWeek > 967){
+    contribution = (grossWeek - 967) * 0.02;
+    grossWeek = 967;
+  }
+  contribution += (grossWeek - 242) * 0.08;
+
+  return contribution;
+}
 
 //#endregion
 
-class _SalaryHomePageState extends State<SalaryHomePage> {
+class _SalaryHomePageState extends State<SalaryHomePage>
+    with SingleTickerProviderStateMixin {
 
+  ///  === VARIABLES ===  ///
+  //     Controllers      //
+  late TabController _tabController;
+  late TextEditingController _rateController;
+  late TextEditingController _nameController;
+  late TextEditingController _loanController;
+  late TextEditingController _incTaxController;
+  late TextEditingController _nicController;
+
+  // <Employee> variables //
   List<Employee> empList = [];
   List<Employee> empListWorked = [];
   List<Employee> empListFiltered = [];
-  late Employee _selectedEmployee;
-  int catchCount = 0;
+  List<Employee> empListToUpdate = [];
+  Employee _selectedEmployee = Employee(hoursRate: 0,id: '',studentPlan: 0,isPostGrad: false,name: '');
+
+  // Day/Week switch variables
   bool dayOrWeek = true;
   String dayOfWeek = '';
 
-  //Calendar Variables
+  //Calendar variables
   DateTime _selectedDay = DateTime.now();
   DateTime _focusedDay = DateTime.now();
   CalendarFormat _calendarFormat = CalendarFormat.month;
+
+  // Error check variables
+  int catchCount = 0;
 
 
 
@@ -159,6 +229,30 @@ class _SalaryHomePageState extends State<SalaryHomePage> {
   @override
   void initState() {
     super.initState();
+    _rateController = TextEditingController(text:'');
+    _nameController = TextEditingController(text:'');
+    _loanController = TextEditingController(text:'');
+    _incTaxController = TextEditingController(text:'');
+    _nicController = TextEditingController(text:'');
+
+    _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(() {
+      int selectedIndex = _tabController.index;
+      print('Selected tab index: $selectedIndex');
+      // Perform any actions based on the selected tab
+      setState(() {
+        switch(selectedIndex){
+          case 0:
+            findWorkingEmployees();
+
+          case 1:
+            empListFiltered = empList;
+
+          default:
+
+        }
+      });
+    });
 
     dbFetchEmployees().then((_){
       findWorkingEmployees();
@@ -167,6 +261,12 @@ class _SalaryHomePageState extends State<SalaryHomePage> {
 
  @override
   void dispose(){
+    _tabController.dispose();
+    _nameController.dispose();
+    _rateController.dispose();
+    _loanController.dispose();
+    _incTaxController.dispose();
+    _nicController.dispose();
     super.dispose();
   }
 
@@ -473,12 +573,32 @@ class _SalaryHomePageState extends State<SalaryHomePage> {
       ),
     );
   }
+
+  Widget _sizedPadding({double width = 0.1, double height = 0.1}){
+    return SizedBox(
+        width:  MediaQuery.of(context).size.width * width,
+        height: MediaQuery.of(context).size.height * height
+    );
+  }
   // =<ENDED>= Component Widgets =<ENDED>= //
 
 
   // =<START>= Part-Feature Widgets =<START>= //
   //A widget that is only a small part of a full feature.
+  //Items for the grid
+  Widget _buildGridItem(Employee employee) {
+    bool isSelected = _selectedEmployee.name == employee.name;
 
+    return Card(
+      color: isSelected ? Colors.lightGreen.shade200 : Colors.lightGreen.shade100,
+      child: Center(
+        child: Text(
+          employee.name,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18,),
+        ),
+      ),
+    );
+  }
 
   // =<ENDED>= Part-Feature Widgets =<ENDED>= //
 //#endregion
@@ -496,39 +616,38 @@ class _SalaryHomePageState extends State<SalaryHomePage> {
     // The Flutter framework has been optimized to make rerunning build methods
     // fast, so that you can just rebuild anything that needs updating rather
     // than having to individually change instances of widgets.
-    return DefaultTabController(
-        length: 3,
-        child: Scaffold(
+    return Scaffold(
           appBar: AppBar(
+
             title: const Text('Salaries Manager'),
             backgroundColor: Colors.lightGreen,
-            bottom: const TabBar(
-              labelColor: Color.fromARGB(255, 49, 84, 28),
-              labelStyle: TextStyle(
+            bottom: TabBar(
+              controller: _tabController,
+              labelColor: const Color.fromARGB(255, 49, 84, 28),
+              labelStyle: const TextStyle(
 
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
               ),
-              unselectedLabelStyle: TextStyle(
+              unselectedLabelStyle: const TextStyle(
                 fontSize: 16,
               ),
-              indicatorColor: Color.fromARGB(255, 58, 95, 34),
+              indicatorColor: const Color.fromARGB(255, 58, 95, 34),
               indicatorSize: TabBarIndicatorSize.tab,
               indicatorWeight: 5,
-              tabs: [
+              tabs: const [
                 Tab(text: 'Overview'),
-                Tab(text: 'Employee Info'),
+                Tab(text: 'Current Employee Info'),
                 Tab(text: 'Track Work'),
               ],
+
             ),
           ),
 
           body: TabBarView(
+            controller: _tabController,
+
             children: [
-
-
-
-
               //OVERVIEW TAB
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -648,38 +767,82 @@ class _SalaryHomePageState extends State<SalaryHomePage> {
                                         prefixIcon: Icon(Icons.search),
                                       ),
                                       onChanged: (value){
-                                        empListFiltered = empList.where((employee) => employee.name.contains(value)).toList();
+                                        setState(() {
+                                          empListFiltered = empList.where((employee) => employee.name.contains(value)).toList();
+                                        });
                                       }
                                   ),
                                 ),
+                                //=========================================
+                                Row(
+                                  children: [
+                                    ElevatedButton(
+                                      onPressed: (){ // Adds employee to newEmpList, if save then all newEmpList employees get added to database.
 
-                                GridView.builder(
-                                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                    crossAxisCount: 3, // Number of columns in the grid
-                                  ),
-                                  itemCount: empListFiltered.length,
-                                  itemBuilder: (BuildContext context, int index) {
-                                    return GestureDetector(
-                                      onTap: () {
-                                        setState(() {
-
-                                          if (_selectedEmployee.id == empListFiltered[index].id) {
-                                            _selectedEmployee = Employee(id: '', name: '', hoursRate: 0, isStudent: false);
-                                          }
-                                          else {
-                                            _selectedEmployee = empListFiltered[index];
-                                          }
-
-                                          //updateControllers(
-                                          //  name: selectedMember.name,
-                                          //  prev: selectedMember.points.toString(),
-                                          //  voucher: selectedMember.voucher,
-                                          //);
-                                        });
                                       },
-                                      //child: _buildGridItem(filteredMembers[index]),
-                                    );
-                                  },
+                                      child: Icon(Icons.add, color: Colors.lightGreen.shade700,),
+                                    )
+                                  ],
+                                ),
+                                _sizedPadding(height: 0.02,),
+                                SizedBox(
+                                  width: 0.45 * screenWidth,
+                                  height: 0.55 * screenHeight,
+
+                                  child: GridView.builder(
+                                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                      crossAxisCount: 3, // Number of columns in the grid
+                                    ),
+                                    itemCount: empListFiltered.length,
+                                    itemBuilder: (BuildContext context, int index) {
+                                      return GestureDetector(
+                                        onTap: () {
+                                          setState(() {
+
+                                            _selectedEmployee.name = _nameController.text;
+                                            _selectedEmployee.hoursRate = double.tryParse(_rateController.text)
+                                              ?? _selectedEmployee.hoursRate;
+
+                                            //checks if its already queued to update, yes then it replaces, no then it adds.
+                                            if (!empListToUpdate.contains(_selectedEmployee)) {
+                                              empListToUpdate.add(
+                                                  _selectedEmployee);
+                                            }
+                                            else{
+                                              empListToUpdate[empListToUpdate.indexWhere((emp) => emp.id == _selectedEmployee.id)] = _selectedEmployee;
+                                            }
+
+                                            //De/select action
+                                            if (_selectedEmployee.name == empListFiltered[index].name) {
+                                              _selectedEmployee = Employee(id: '', name: '', hoursRate: 0, studentPlan: 0, isPostGrad: false,);
+                                            }
+                                            else {
+                                              _selectedEmployee = empListFiltered[index];
+                                            }
+
+                                            //Update displays
+                                            _nameController.text = _selectedEmployee.name;
+                                            _rateController.text = _selectedEmployee.hoursRate.toStringAsFixed(2);
+                                            _loanController.text = '£${loanRepaymentDue(
+                                                planThreshold: _selectedEmployee.studentPlan,
+                                                postGrad: _selectedEmployee.isPostGrad,
+                                                hoursRate: findEmployeesRecord([_selectedEmployee], 0)['hoursRate'],
+                                                hoursWorked: findEmployeesRecord([_selectedEmployee], 0)['hoursWorked']).toStringAsFixed(2)
+                                            }';
+
+                                            _incTaxController.text = '£${incomeTaxDue(
+                                                hoursWorked: findEmployeesRecord([_selectedEmployee], 0)['hoursWorked'],
+                                                hoursRate: findEmployeesRecord([_selectedEmployee], 0)['hoursRate']).toStringAsFixed(2)}';
+                                            _nicController.text = '£${nicDue(
+                                                hoursRate: findEmployeesRecord([_selectedEmployee], 0)['hoursRate'],
+                                                hoursWorked: findEmployeesRecord([_selectedEmployee], 0)['hoursWorked']
+                                            ).toStringAsFixed(2)}';
+                                          });
+                                        },
+                                        child: _buildGridItem(empListFiltered[index]),
+                                      );
+                                    },
+                                  ),
                                 ),
                               ],
                             )
@@ -688,9 +851,461 @@ class _SalaryHomePageState extends State<SalaryHomePage> {
                   ),
 
                   //Right-hand side
-                  Column(
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child:
+                      Container(
+                        margin: const EdgeInsets.all(16.0),
+                        padding: const EdgeInsets.all(4.0),
+                        width: screenWidth * 0.45,
+                        decoration:
+                          BoxDecoration(
+                            border: Border.all(
+                              color: Colors.lightGreen.shade500, // Set the border color here
+                              width: 10.0,
+                            ),
+                            borderRadius: BorderRadius.circular(10.0),
+                            color: Colors.lightGreen.shade50,
+                          ),
+                        child:
+                          SingleChildScrollView(
+                            child:
+                            Column(
+                              children: [
+                                _sizedPadding(height: 0.025),
+                                const Text(             // HEADER
+                                  'Current Employee Details',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ), // Header
+                                _sizedPadding(height: 0.025),
+                                Container(
+                                  margin:
+                                    EdgeInsets
+                                      .fromLTRB(screenWidth * 0.05, 0, screenWidth * 0.05, 0),
+                                  padding:
+                                    const EdgeInsets.all(10.0),
 
-                  ),
+                                  decoration:
+                                    BoxDecoration(
+                                      border: Border.all(
+                                        width: 5.0,
+                                        color: Colors.lightGreen.shade200,
+                                      ),
+
+                                      color: Colors.white70,
+                                    ),
+
+                                  child:
+                                    TextField(
+                                      controller: _nameController,
+                                      keyboardType: TextInputType.name,
+                                      style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w400,
+                                      ),
+                                      decoration: const InputDecoration(
+                                        hintText: "Employee's Name",
+                                      ),
+                                      onChanged: (value){
+                                        _selectedEmployee.name = value;
+                                      },
+
+                                    ),
+                                ),  // Name text field
+                                _sizedPadding(height: 0.05),
+                                Row( // Hourly Rate Row
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Container(
+                                      margin:
+                                      EdgeInsets
+                                          .fromLTRB(screenWidth * 0.05, 0, screenWidth * 0.02, 0),
+                                      padding:
+                                      const EdgeInsets.all(10.0),
+
+                                      decoration:
+                                      BoxDecoration(
+                                        border: Border.all(
+                                          width: 5.0,
+                                          color: Colors.lightGreen.shade200,
+                                        ),
+
+                                        color: Colors.white70,
+                                      ),
+
+                                      child:
+                                      const Text(
+                                        'Hourly Rate:',
+                                        style:
+                                        TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+
+                                      ),
+                                    ), // Hourly Rate Text
+                                    Container(
+                                      width: screenWidth * 0.15,
+                                      margin:
+                                      EdgeInsets
+                                          .fromLTRB(screenWidth * 0.01, 0, screenWidth * 0.05, 0),
+                                      padding:
+                                      const EdgeInsets.all(5.0),
+
+                                      decoration:
+                                      BoxDecoration(
+                                        border: Border.all(
+                                          width: 5.0,
+                                          color: Colors.lightGreen.shade200,
+                                        ),
+
+                                        color: Colors.white70,
+                                      ),
+
+                                      child:
+                                        TextField(
+                                          controller: _rateController,
+                                          keyboardType: TextInputType.number,
+                                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+
+                                          decoration: const InputDecoration(
+                                            hintText: '£00.00',
+                                            prefixText: '£',
+                                          ),
+
+                                          style:
+                                            const TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+
+                                        ),
+                                    ),
+                                  ],
+                                ),        // Hourly rate field
+
+                                _sizedPadding(height: 0.05),
+                                Row( // Student Plan dropdown menu Row
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Container(
+                                      margin:
+                                      EdgeInsets
+                                          .fromLTRB(screenWidth * 0.05, 0, screenWidth * 0.02, 0),
+                                      padding:
+                                      const EdgeInsets.all(10.0),
+
+                                      decoration:
+                                      BoxDecoration(
+                                        border: Border.all(
+                                          width: 5.0,
+                                          color: Colors.lightGreen.shade200,
+                                        ),
+
+                                        color: Colors.white70,
+                                      ),
+
+                                      child:
+                                      const Text(
+                                        'Student Loan plan:',
+                                        style:
+                                        TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+
+                                      ),
+                                    ), // Checkbox Text
+                                    Container(
+                                      margin:
+                                      EdgeInsets
+                                          .fromLTRB(screenWidth * 0.025, 0, screenWidth * 0.05, 0),
+
+                                      color: Colors.white70,
+
+                                      child:
+                                        DropdownMenu(
+                                          initialSelection: _selectedEmployee.studentPlan,
+                                          onSelected: (int? value){
+                                            if (value == null) {
+                                              return;
+                                            }
+                                            setState(() {
+                                              _selectedEmployee.studentPlan = value;
+                                            });
+                                          },
+
+                                          dropdownMenuEntries: const [
+                                            DropdownMenuEntry(value: 0, label: 'None'),
+                                            DropdownMenuEntry(value: 480, label: 'Plan 1 or 5'),
+                                            DropdownMenuEntry(value: 524, label: 'Plan 2'),
+                                            DropdownMenuEntry(value: 603, label: 'Plan 4'),
+                                          ],
+                                        ),
+                                    ),
+                                  ],
+                                ),        // student loan plan dropdown menu
+
+                                _sizedPadding(height: 0.05),
+                                Row(      // Post-grad loan checkbox
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Container(
+                                      margin:
+                                      EdgeInsets
+                                          .fromLTRB(screenWidth * 0.05, 0, screenWidth * 0.02, 0),
+                                      padding:
+                                      const EdgeInsets.all(10.0),
+
+                                      decoration:
+                                      BoxDecoration(
+                                        border: Border.all(
+                                          width: 5.0,
+                                          color: Colors.lightGreen.shade200,
+                                        ),
+
+                                        color: Colors.white70,
+                                      ),
+
+                                      child:
+                                      const Text(
+                                        'Has Post-Grad Loan:',
+                                        style:
+                                        TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+
+                                      ),
+                                    ),
+                                    Checkbox(
+
+                                      value: _selectedEmployee.isPostGrad,
+                                      tristate: false,
+                                      activeColor: Colors.lightGreen.shade600,
+                                      onChanged: (value){
+                                        if (value == null){
+                                          return;
+                                        }
+                                        setState(() {
+                                          _selectedEmployee.isPostGrad = value;
+                                        });
+                                      },
+                                    ),
+                                    _sizedPadding(width: 0.05),
+                                  ]
+                                ),        // Post grad plan checkbox
+                                _sizedPadding(height: 0.05),
+                                const Text(             // HEADER
+                                  "Selected Week's Deductions",
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ), // Header
+                                _sizedPadding(height: 0.05),
+                                Row( // S-Loan repayment Row
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Container(
+                                      margin:
+                                      EdgeInsets
+                                          .fromLTRB(screenWidth * 0.05, 0, screenWidth * 0.02, 0),
+                                      padding:
+                                      const EdgeInsets.all(10.0),
+
+                                      decoration:
+                                      BoxDecoration(
+                                        border: Border.all(
+                                          width: 5.0,
+                                          color: Colors.lightGreen.shade200,
+                                        ),
+
+                                        color: Colors.lightGreen.shade400,
+                                      ),
+
+                                      child:
+                                      const Text(
+                                        'Loan repayment:',
+                                        style:
+                                        TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+
+                                      ),
+                                    ), // Loan repayment Text
+                                    Container(
+                                      width: screenWidth * 0.15,
+                                      margin:
+                                      EdgeInsets
+                                          .fromLTRB(screenWidth * 0.01, 0, screenWidth * 0.05, 0),
+                                      padding:
+                                      const EdgeInsets.all(5.0),
+
+                                      decoration:
+                                      BoxDecoration(
+                                        border: Border.all(
+                                          width: 5.0,
+                                          color: Colors.lightGreen.shade200,
+                                        ),
+
+                                        color: Colors.lightGreen.shade400,
+                                      ),
+
+                                      child:
+                                        TextField(
+                                          controller: _loanController,
+
+                                        style:
+                                        const TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+
+                                      ),
+                                    ),
+                                  ],
+                                ),        // Loan repayment text display
+                                _sizedPadding(height: 0.05),
+                                Row( // Income Tax Row
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Container(
+                                      margin:
+                                      EdgeInsets
+                                          .fromLTRB(screenWidth * 0.05, 0, screenWidth * 0.02, 0),
+                                      padding:
+                                      const EdgeInsets.all(10.0),
+
+                                      decoration:
+                                      BoxDecoration(
+                                        border: Border.all(
+                                          width: 5.0,
+                                          color: Colors.lightGreen.shade200,
+                                        ),
+
+                                        color: Colors.lightGreen.shade400,
+                                      ),
+
+                                      child:
+                                      const Text(
+                                        'Income Tax:',
+                                        style:
+                                        TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+
+                                      ),
+                                    ), // Loan repayment Text
+                                    Container(
+                                      width: screenWidth * 0.15,
+                                      margin:
+                                      EdgeInsets
+                                          .fromLTRB(screenWidth * 0.01, 0, screenWidth * 0.05, 0),
+                                      padding:
+                                      const EdgeInsets.all(5.0),
+
+                                      decoration:
+                                      BoxDecoration(
+                                        border: Border.all(
+                                          width: 5.0,
+                                          color: Colors.lightGreen.shade200,
+                                        ),
+
+                                        color: Colors.lightGreen.shade400,
+                                      ),
+
+                                      child:
+                                      TextField(
+                                        controller: _incTaxController,
+
+                                        style:
+                                        const TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                _sizedPadding(height: 0.05),
+                                Row( // NI contribution Row
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Container(
+                                      margin:
+                                      EdgeInsets
+                                          .fromLTRB(screenWidth * 0.05, 0, screenWidth * 0.02, 0),
+                                      padding:
+                                      const EdgeInsets.all(10.0),
+
+                                      decoration:
+                                      BoxDecoration(
+                                        border: Border.all(
+                                          width: 5.0,
+                                          color: Colors.lightGreen.shade200,
+                                        ),
+
+                                        color: Colors.lightGreen.shade400,
+                                      ),
+
+                                      child:
+                                      const Text(
+                                        'NI Contribution:',
+                                        style:
+                                        TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+
+                                      ),
+                                    ), // Loan repayment Text
+                                    Container(
+                                      width: screenWidth * 0.15,
+                                      margin:
+                                      EdgeInsets
+                                          .fromLTRB(screenWidth * 0.01, 0, screenWidth * 0.05, 0),
+                                      padding:
+                                      const EdgeInsets.all(5.0),
+
+                                      decoration:
+                                      BoxDecoration(
+                                        border: Border.all(
+                                          width: 5.0,
+                                          color: Colors.lightGreen.shade200,
+                                        ),
+
+                                        color: Colors.lightGreen.shade400,
+                                      ),
+
+                                      child:
+                                      TextField(
+                                        controller: _nicController,
+
+                                        style:
+                                        const TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+
+                                      ),
+                                    ),
+                                  ],
+                                ),
+
+                              ],
+                            ),
+                          ),
+                      ),
+                  )
                 ],
               ),
 
@@ -701,7 +1316,6 @@ class _SalaryHomePageState extends State<SalaryHomePage> {
 
             ],
           ),
-        ),
     );
   }
 }
