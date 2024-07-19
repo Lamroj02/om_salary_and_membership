@@ -159,7 +159,6 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
           );
         }
     );
-
   }
   //#endregion
 

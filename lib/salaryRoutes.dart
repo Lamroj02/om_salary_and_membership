@@ -89,13 +89,13 @@ class SalaryHomePage extends StatefulWidget {
 /// === METHODS === ///
 //#region
 
-
 Future<void> addEmployee(Employee employee) async {
   try {
     await db.collection('Employees').add({
       'name': employee.name,
-      'isStudent': employee.studentPlan,
+      'studentPlan': employee.studentPlan,
       'hoursRate': employee.hoursRate,
+      'isPostGrad': employee.isPostGrad,
     });
     print('Employee added successfully');
   } catch (e) {
@@ -105,9 +105,16 @@ Future<void> addEmployee(Employee employee) async {
 
 //Updates on save button tap - prior to tap, any updated employees are copied to a
 //separate array<Employee> with updated details, then on save, update using array then clears.
-Future<void> updateEmployee(String docId, Map<String, dynamic> updatedFields) async {
+
+
+Future<void> updateEmployee(String docId, Employee employee) async {
   try {
-    await FirebaseFirestore.instance.collection('Employees').doc(docId).update(updatedFields);
+    await FirebaseFirestore.instance.collection('Employees').doc(docId).set({
+      'name': employee.name,
+      'studentPlan': employee.studentPlan,
+      'hoursRate': employee.hoursRate,
+      'isPostGrad': employee.isPostGrad,
+    });
     print('Employee updated successfully');
   } catch (e) {
     print('Error updating employee: $e');
@@ -132,7 +139,9 @@ Employee? findEmployeeById(List<Employee> empList, String searchId) {
 Map<String,dynamic> findEmployeesRecord(List<Employee> empListFiltered, int index){
   return
     Records.selectedWeek.employeesWorked.firstWhere((employee) => employee['employeeID'] == empListFiltered[index].id,
-      orElse: () => {'hoursWorked': 0}
+      orElse: () => {
+      'hoursRate': 0,
+      'hoursWorked': 0}
     );
 }
 
@@ -207,7 +216,7 @@ class _SalaryHomePageState extends State<SalaryHomePage>
   List<Employee> empList = [];
   List<Employee> empListWorked = [];
   List<Employee> empListFiltered = [];
-  List<Employee> empListToUpdate = [];
+  List<String> empListToUpdate = [];
   Employee _selectedEmployee = Employee(hoursRate: 0,id: '',studentPlan: 0,isPostGrad: false,name: '');
 
   // Day/Week switch variables
@@ -509,7 +518,7 @@ class _SalaryHomePageState extends State<SalaryHomePage>
   Widget employeeSearchBar() {
     return TextField(
       decoration: const InputDecoration(
-        hintText: 'Search member...',
+        hintText: 'Search employee...',
         prefixIcon: Icon(Icons.search),
       ),
 
@@ -528,6 +537,42 @@ class _SalaryHomePageState extends State<SalaryHomePage>
           print("empty!!!");
         }
       },
+    );
+  }
+
+  Future<void> saveMessage() async {
+    return showDialog<void>(
+        context: context,
+        builder: (BuildContext context){
+          return AlertDialog(
+            title: const Text('Saved Changes!'),
+            content: const Text('You can safely leave the\npage if you wish.'),
+            actions: [
+              TextButton(onPressed: (){Navigator.of(context).pop();}, child: const Text('OK')),
+            ],
+          );
+        }
+    );
+  }
+
+  Future<void> unsavedChangesMessage() async {
+    return showDialog<void>(
+        context: context,
+        builder: (BuildContext context){
+          return AlertDialog(
+            title: const Text('Unsaved Changes!'),
+            content: const Text('Do you want to leave anyways?\nAll changes will be lost.'),
+            actions: [
+              TextButton(onPressed: (){
+                Navigator.of(context).pop();
+              }, child: const Text('No')),
+              TextButton(onPressed: (){
+                Navigator.of(context).pop();
+                Navigator.of(context).pop();
+              }, child: const Text('Yes')),
+            ],
+          );
+        }
     );
   }
   // =<ENDED>= Feature Widgets =<ENDED>= //
@@ -587,7 +632,7 @@ class _SalaryHomePageState extends State<SalaryHomePage>
   //A widget that is only a small part of a full feature.
   //Items for the grid
   Widget _buildGridItem(Employee employee) {
-    bool isSelected = _selectedEmployee.name == employee.name;
+    bool isSelected = _selectedEmployee.id == employee.id;
 
     return Card(
       color: isSelected ? Colors.lightGreen.shade200 : Colors.lightGreen.shade100,
@@ -618,10 +663,53 @@ class _SalaryHomePageState extends State<SalaryHomePage>
     // than having to individually change instances of widgets.
     return Scaffold(
           appBar: AppBar(
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: (){
+                if (empListToUpdate.isNotEmpty){
+                  unsavedChangesMessage();
+                }
+                else{
+                  Navigator.pop(context);
+                }
+              },
+            ),
 
             title: const Text('Salaries Manager'),
             backgroundColor: Colors.lightGreen,
+            
+            actions: [
+              ElevatedButton(
+                onPressed: () {
+                  if(empListToUpdate.isNotEmpty){
+                    Employee currEmp = Employee(id: '', name: '', hoursRate: 0, studentPlan: 0, isPostGrad: false);
+                    for(int i = 0; i < empListToUpdate.length; i++){
+                      for(int j = 0; j < empList.length; j++){
+                        if (empListToUpdate[i] == empList[j].id){
+                          currEmp = empList[j];
+                          break;
+                        }
+                      }
+                      if (currEmp.id == ''){continue;}
+                      updateEmployee(currEmp.id, currEmp);
+                      //print('currEmp = id: ${currEmp.id}, name: ${currEmp.name}');
+                    }
+                    empListToUpdate.clear();
+                  }
+                  Records.setRecords(getFirstDateOfCurrentWeek(_selectedDay).toString().split(' ')[0], Records.selectedWeek);
+                  saveMessage();
+                },
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.all(20.0),
+                  shape: const CircleBorder(),
+                ),
+                child: Icon(Icons.save, color: Colors.lightGreen.shade700,),
+              ),
+              _sizedPadding(width: 0.1),
+            ],
+            
             bottom: TabBar(
+
               controller: _tabController,
               labelColor: const Color.fromARGB(255, 49, 84, 28),
               labelStyle: const TextStyle(
@@ -797,29 +885,30 @@ class _SalaryHomePageState extends State<SalaryHomePage>
                                     itemBuilder: (BuildContext context, int index) {
                                       return GestureDetector(
                                         onTap: () {
-                                          setState(() {
+                                          //checks if its not in update queue, if not then adds id for update queue
+                                          if (!empListToUpdate.contains(_selectedEmployee.id)) {
+                                            empListToUpdate.add(_selectedEmployee.id);
+                                          }
+                                          //Implements recent changes to stored list's version of same employee
+                                          if (_selectedEmployee.id != '' && (empList.indexWhere((e) => e.id == _selectedEmployee.id) != -1))  {
+                                            empList[empList.indexWhere((e) => e.id == _selectedEmployee.id)] = _selectedEmployee;
+                                          }
 
-                                            _selectedEmployee.name = _nameController.text;
-                                            _selectedEmployee.hoursRate = double.tryParse(_rateController.text)
+                                          _selectedEmployee.name = _nameController.text;
+                                          _selectedEmployee.hoursRate = double.tryParse(_rateController.text)
                                               ?? _selectedEmployee.hoursRate;
 
-                                            //checks if its already queued to update, yes then it replaces, no then it adds.
-                                            if (!empListToUpdate.contains(_selectedEmployee)) {
-                                              empListToUpdate.add(
-                                                  _selectedEmployee);
-                                            }
-                                            else{
-                                              empListToUpdate[empListToUpdate.indexWhere((emp) => emp.id == _selectedEmployee.id)] = _selectedEmployee;
-                                            }
 
-                                            //De/select action
-                                            if (_selectedEmployee.name == empListFiltered[index].name) {
-                                              _selectedEmployee = Employee(id: '', name: '', hoursRate: 0, studentPlan: 0, isPostGrad: false,);
-                                            }
-                                            else {
-                                              _selectedEmployee = empListFiltered[index];
-                                            }
 
+                                          //De/select action
+                                          if (_selectedEmployee.id == empListFiltered[index].id) {
+                                            _selectedEmployee = Employee(id: '', name: '', hoursRate: 0, studentPlan: 0, isPostGrad: false,);
+                                          }
+                                          else {
+                                            _selectedEmployee = empListFiltered[index];
+                                          }
+
+                                          setState(() {
                                             //Update displays
                                             _nameController.text = _selectedEmployee.name;
                                             _rateController.text = _selectedEmployee.hoursRate.toStringAsFixed(2);
@@ -912,6 +1001,9 @@ class _SalaryHomePageState extends State<SalaryHomePage>
                                       ),
                                       onChanged: (value){
                                         _selectedEmployee.name = value;
+                                        if(!empListToUpdate.contains(_selectedEmployee.id)){
+                                          empListToUpdate.add(_selectedEmployee.id);
+                                        }
                                       },
 
                                     ),
@@ -971,6 +1063,12 @@ class _SalaryHomePageState extends State<SalaryHomePage>
                                           controller: _rateController,
                                           keyboardType: TextInputType.number,
                                           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                                          onChanged: (value){
+                                            _selectedEmployee.hoursRate = double.tryParse(value) ?? _selectedEmployee.hoursRate;
+                                            if(!empListToUpdate.contains(_selectedEmployee.id)){
+                                              empListToUpdate.add(_selectedEmployee.id);
+                                            }
+                                          },
 
                                           decoration: const InputDecoration(
                                             hintText: '£00.00',
@@ -1029,11 +1127,16 @@ class _SalaryHomePageState extends State<SalaryHomePage>
 
                                       child:
                                         DropdownMenu(
+                                          enableSearch: false,
                                           initialSelection: _selectedEmployee.studentPlan,
                                           onSelected: (int? value){
                                             if (value == null) {
                                               return;
                                             }
+                                            if(!empListToUpdate.contains(_selectedEmployee.id)){
+                                              empListToUpdate.add(_selectedEmployee.id);
+                                            }
+
                                             setState(() {
                                               _selectedEmployee.studentPlan = value;
                                             });
@@ -1090,6 +1193,10 @@ class _SalaryHomePageState extends State<SalaryHomePage>
                                       onChanged: (value){
                                         if (value == null){
                                           return;
+                                        }
+                                        if(!empListToUpdate.contains(_selectedEmployee.id)){
+                                          empListToUpdate.add(_selectedEmployee.id);
+                                          print('employee "${_selectedEmployee.name}" added!');
                                         }
                                         setState(() {
                                           _selectedEmployee.isPostGrad = value;

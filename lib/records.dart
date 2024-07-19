@@ -4,28 +4,41 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 /// Without the proper input from either, this package may not function
 /// as intended.
 
+final db = FirebaseFirestore.instance;
 
 class Records{
 
   static WeekRecord selectedWeek = WeekRecord();
 
-  /// === METHODS === ///
-  void currToRecord(){
-    //End-link to refreshCurr()
+  static Future<void> setRecords(String cursorTime, WeekRecord record) async {
+    try {
+      List<Map<String,dynamic>> empWorkedList = [];
+      for (int i = 0; i < record.employeesWorked.length; i++){
+        empWorkedList.add({
+          'employeeID': record.employeesWorked[i]['employeeID'],
+          'hoursRate': record.employeesWorked[i]['hoursRate'],
+          'hoursWorked': record.employeesWorked[i]['hoursWorked'],
+          'tipDistribution': record.employeesWorked[i]['tipDistribution'],
+          'workedDays': record.employeesWorked[i]['workedDays'],
+        });
+      }
+      db.collection('Records').doc(cursorTime).set({
+        'Payments': {
+          'VAT': record.payments['VAT'],
+          'card': record.payments['card'],
+          'cash': record.payments['cash'],
+          'serviceCharge': record.payments['serviceCharge'],
+        },
+        'employeesWorked': empWorkedList,
+        'netTotal': record.netTotal,
+        'tipTotal': record.netTotal,
+      });
+      print('Record added successfully');
+
+    }catch (e) {
+      print('Error adding Record: $e');
+    }
   }
-
-  void refreshCurr(){
-
-  }
-
-  void saveToRecord(){
-    //Check for if current week, if so then do following method instead
-  }
-
-  void saveToCurr(){
-
-  }
-
 }
 
 class WeekRecord{
