@@ -76,9 +76,9 @@ Future<void> uploadMember(Member member) async {
       'points': member.points,
       'voucherExpiry': member.voucher
     });
-    print('Member added successfully');
+    print('Member uploaded successfully');
   } catch (e) {
-    print('Error adding Member: $e');
+    print('Error uploading Member: $e');
   }
 }
 
@@ -106,6 +106,8 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
     Member("Sam Tangerine", '207','Sam-TangerGOD20@gmail.com', '01214097350',100, DateTime.now()),
     Member("Polly Amorus", '115','Polly20@gmail.com', '01214097350',100, DateTime.now())
   ];*/ //
+
+  List<String> toUpdateIds = [];
   List<Member> rawMembers = [];
   List<Member> filteredMembers = [];
   late TextEditingController nameController, pointController,tdPointController,sumController,voucherController;
@@ -142,6 +144,22 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
     //Saving Information Logic
 
     super.dispose();
+  }
+
+  Future<void> SaveMessage() async {
+    return showDialog<void>(
+        context: context,
+        builder: (BuildContext context){
+          return AlertDialog(
+            title: const Text('Saved Changes!'),
+            content: const Text('You can safely leave the\npage if you wish.'),
+            actions: [
+              TextButton(onPressed: (){Navigator.of(context).pop();}, child: const Text('OK')),
+            ],
+          );
+        }
+    );
+
   }
   //#endregion
 
@@ -307,7 +325,13 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
             mainAxisAlignment: MainAxisAlignment.start,
             children:[
               ElevatedButton(
-                onPressed: () => Navigator.pop(context),
+                onPressed: () async {
+                  for(int i = 0; i < toUpdateIds.length; i++){
+                    await uploadMember(rawMembers.firstWhere((mem) => mem.id == toUpdateIds[i]));
+                  }
+                  toUpdateIds.clear();
+                  SaveMessage();
+                },
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.all(20.0),
                   shape: const CircleBorder(),
@@ -532,6 +556,9 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
                           keyboardType: TextInputType.number, // Set the input type to number
                           inputFormatters: [FilteringTextInputFormatter.digitsOnly], // Accept only digits
                           onChanged: (value){
+                            if (!toUpdateIds.contains(selectedMember.id)){
+                              toUpdateIds.add(selectedMember.id);
+                            }
                             updateSum();
                           },
                         ),
@@ -578,6 +605,7 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
                     ],
                   ),
                   TextButton (
+
                     style: TextButton.styleFrom(
                       foregroundColor: Colors.indigo.shade200,
                       backgroundColor: Colors.indigo.shade300,
@@ -587,9 +615,13 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
                     onPressed: () {
                       if(!gotVoucher){return;} //Must have voucher to interact with button
 
+                      if (!toUpdateIds.contains(selectedMember.id)){
+                        toUpdateIds.add(selectedMember.id);
+                      }
                       setState(() {
                         gotVoucher = false;
                         selectedMember.voucher = DateTime.now();
+
                         updateSum();
                       });
                     },
