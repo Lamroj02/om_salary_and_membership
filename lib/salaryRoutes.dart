@@ -231,7 +231,9 @@ class _SalaryHomePageState extends State<SalaryHomePage>
   // Error check variables
   int catchCount = 0;
 
-
+  // 3rd Tab variables
+  Set<int> selectedIndices = {};
+  bool isMultiSelect = false;
 
   /// === OVERRIDES === ///
   //#region
@@ -258,7 +260,7 @@ class _SalaryHomePageState extends State<SalaryHomePage>
             empListFiltered = empList;
 
           default:
-
+            empListFiltered = empList;
         }
       });
     });
@@ -278,7 +280,10 @@ class _SalaryHomePageState extends State<SalaryHomePage>
     _nicController.dispose();
     super.dispose();
   }
+//#endregion
 
+  /// === IN-CLASS METHODS === ///
+  //#region
   Future<void> dbFetchEmployees() async {
     try {
       final QuerySnapshot event = await db.collection("Employees").get();
@@ -417,6 +422,29 @@ class _SalaryHomePageState extends State<SalaryHomePage>
     }catch (e) {
       print('Error adding Record: $e');
     }
+  }
+
+  void toggleMultiSelect() {
+    setState(() {
+      isMultiSelect = !isMultiSelect;
+      if (!isMultiSelect) {
+        selectedIndices.clear();
+      }
+    });
+  }
+
+  void onItemTap(int index) {
+    setState(() {
+      if (isMultiSelect) {
+        if (selectedIndices.contains(index)) {
+          selectedIndices.remove(index);
+        } else {
+          selectedIndices.add(index);
+        }
+      } else {
+        selectedIndices = {index};
+      }
+    });
   }
   //#endregion
 
@@ -631,8 +659,11 @@ class _SalaryHomePageState extends State<SalaryHomePage>
   // =<START>= Part-Feature Widgets =<START>= //
   //A widget that is only a small part of a full feature.
   //Items for the grid
-  Widget _buildGridItem(Employee employee) {
+  Widget _buildGridItem(Employee employee, {int index = -1}) {
     bool isSelected = _selectedEmployee.id == employee.id;
+    if (index >= 0){
+      isSelected = selectedIndices.contains(index);
+    }
 
     return Card(
       color: isSelected ? Colors.lightGreen.shade200 : Colors.lightGreen.shade100,
@@ -1418,7 +1449,201 @@ class _SalaryHomePageState extends State<SalaryHomePage>
 
               //PAY TAB
               Row(
-                //Refer to draw.io wireframe
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+
+                  // LEFT-HAND SIDE
+                  Align(                    //ALIGN TO CENTRE-LEFT
+                    alignment: Alignment.centerLeft,
+                    child:
+                    Container(      //DECORATION
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            color: Colors.lightGreen.shade500, // Set the border color here
+                            width: 10.0,
+                          ),
+                          borderRadius: BorderRadius.circular(10.0),
+                          color: Colors.lightGreen.shade50,
+                        ),
+                        margin: const EdgeInsets.all(16.0),
+                        padding: const EdgeInsets.all(4),
+                        child:
+                        Column(         //STRUCTURE WITHIN CONTAINER
+                          children: [
+                            SizedBox(   //CONTROL DIMENSIONS OF SEARCH BAR
+                              width: 0.37 * screenWidth,
+                              height: 0.1 * screenHeight,
+                              child:
+                              TextField( //SEARCH BAR WIDGET
+                                  decoration:
+                                  const InputDecoration(
+                                    hintText: 'Search employees...',
+                                    prefixIcon: Icon(Icons.search),
+                                  ),
+                                  onChanged: (value){
+                                    setState(() {
+                                      empListFiltered = empList.where((employee) => employee.name.contains(value)).toList();
+                                    });
+                                  }
+                              ),
+                            ),
+                            //=========================================
+                            Row(
+                              children: [
+                                ElevatedButton(
+                                  style:
+                                    ElevatedButton.styleFrom(
+                                      backgroundColor: isMultiSelect ? Colors.redAccent.shade200 : Colors.white70,
+                                    ),
+                                  onPressed: (){ //
+                                    setState(() {
+                                      toggleMultiSelect();
+                                    });
+                                  },
+                                  child: const Text('Multi-Select', style: TextStyle(color: Colors.black54)),
+                                )
+                              ],
+                            ),
+                            _sizedPadding(height: 0.02,),
+                            SizedBox(
+                              width: 0.45 * screenWidth,
+                              height: 0.55 * screenHeight,
+
+                              child: GridView.builder(
+                                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: 3, // Number of columns in the grid
+                                ),
+                                itemCount: empListFiltered.length,
+                                itemBuilder: (BuildContext context, int index) {
+                                  return GestureDetector(
+                                    onTap: () {
+                                      onItemTap(index);
+
+                                      setState(() {
+
+                                      });
+                                    },
+                                    child: _buildGridItem(empListFiltered[index], index: index),
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
+                        )
+
+                    ),
+                  ),
+
+                  // RIGHT-HAND SIDE
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child:
+                    Column( //Calendar and Switch
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      prefixedCalendar(screenWidth: screenWidth),
+
+                      Row( // Hours Worked Text Field - Feeds into a new list for the select employees, then on-save implements it into the record
+                        children: [
+                          const Text('Hours Worked:',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w400,
+                              fontSize: 18,
+                            ),
+                          ),
+                          Container(
+                            width: screenWidth * 0.2,
+                            height: screenHeight * 0.1,
+                            margin:
+                            EdgeInsets
+                                .fromLTRB(screenWidth * 0.05, 0, screenWidth * 0.05, 0),
+                            padding:
+                            const EdgeInsets.all(10.0),
+
+                            decoration:
+                            BoxDecoration(
+                              border: Border.all(
+                                width: 5.0,
+                                color: Colors.lightGreen.shade200,
+                              ),
+
+                              color: Colors.white70,
+                            ),
+
+                            child:
+                            TextField(
+                              //controller: ,
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w400,
+                              ),
+                              decoration: const InputDecoration(
+                                hintText: "00.00",
+                                suffixText: ' hour(s)',
+                              ),
+
+
+                            ),
+                          ),
+                        ],
+                      ),
+                      _sizedPadding(height: 0.03),
+
+                      Row( // Day's total tips (Split between anyone in employeesWorked of the selected record with 'true' on the specified weekday)
+                        children: [
+                          const Text("Day's Total Tips:",
+                            style: TextStyle(
+                              fontWeight: FontWeight.w400,
+                              fontSize: 18,
+                            ),
+                          ),
+                          Container(
+                            width: screenWidth * 0.2,
+                            height: screenHeight * 0.1,
+                            margin:
+                            EdgeInsets
+                                .fromLTRB(screenWidth * 0.05, 0, screenWidth * 0.05, 0),
+                            padding:
+                            const EdgeInsets.all(10.0),
+
+                            decoration:
+                            BoxDecoration(
+                              border: Border.all(
+                                width: 5.0,
+                                color: Colors.lightGreen.shade200,
+                              ),
+
+                              color: Colors.white70,
+                            ),
+
+                            child:
+                            TextField(
+                              //controller: ,
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w400,
+                              ),
+                              decoration: const InputDecoration(
+                                hintText: "00.00",
+                                prefixText: '£',
+                              ),
+
+
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  )
+
+                ]
               ),
 
             ],
