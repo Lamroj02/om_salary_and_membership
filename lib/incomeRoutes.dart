@@ -42,7 +42,6 @@ class _IncomeRoutesHomePageState extends State<IncomeRoutesHomePage> {
   //Calendar variables
   DateTime _selectedDay = DateTime.now();
   DateTime _focusedDay = DateTime.now();
-  CalendarFormat _calendarFormat = CalendarFormat.month;
 
   //General variables
   double grossTotal = 0;
@@ -195,9 +194,9 @@ class _IncomeRoutesHomePageState extends State<IncomeRoutesHomePage> {
     _cardController.text = '';
     _cashController.text = '';
     _sChargeController.text = '';
-    _weekTipsController.text = (((Records.selectedWeek.payments['serviceCharge'] ?? 0) * 0.8)
+    _weekTipsController.text = (((payments['serviceCharge'] ?? 0) * 0.8)
         + Records.selectedWeek.tipTotal).toStringAsFixed(2);
-    _weekVATController.text = (Records.selectedWeek.payments['VAT'] ?? 0).toStringAsFixed(2);
+    _weekVATController.text = (payments['VAT'] ?? 0).toStringAsFixed(2);
     _weekGTotalController.text = Records.selectedWeek.netTotal.toStringAsFixed(2);
   }
 
