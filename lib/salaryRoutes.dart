@@ -211,6 +211,8 @@ class _SalaryHomePageState extends State<SalaryHomePage>
   late TextEditingController _loanController;
   late TextEditingController _incTaxController;
   late TextEditingController _nicController;
+  late TextEditingController _workedController;
+  late TextEditingController _totalTipController;
 
   // <Employee> variables //
   List<Employee> empList = [];
@@ -227,6 +229,7 @@ class _SalaryHomePageState extends State<SalaryHomePage>
   DateTime _selectedDay = DateTime.now();
   DateTime _focusedDay = DateTime.now();
   CalendarFormat _calendarFormat = CalendarFormat.month;
+  bool haltDateChange = false;
 
   // Error check variables
   int catchCount = 0;
@@ -234,6 +237,7 @@ class _SalaryHomePageState extends State<SalaryHomePage>
   // 3rd Tab variables
   Set<int> selectedIndices = {};
   bool isMultiSelect = false;
+  List<Map<String, dynamic>> hoursAndTips = [];
 
   /// === OVERRIDES === ///
   //#region
@@ -245,6 +249,8 @@ class _SalaryHomePageState extends State<SalaryHomePage>
     _loanController = TextEditingController(text:'');
     _incTaxController = TextEditingController(text:'');
     _nicController = TextEditingController(text:'');
+    _totalTipController = TextEditingController(text: '');
+    _workedController = TextEditingController(text: '');
 
     _tabController = TabController(length: 3, vsync: this);
     _tabController.addListener(() {
@@ -278,6 +284,8 @@ class _SalaryHomePageState extends State<SalaryHomePage>
     _loanController.dispose();
     _incTaxController.dispose();
     _nicController.dispose();
+    _totalTipController.dispose();
+    _workedController.dispose();
     super.dispose();
   }
 //#endregion
@@ -309,7 +317,7 @@ class _SalaryHomePageState extends State<SalaryHomePage>
         print("No such document! ~ dbFetchRecord(else)");
         // Handle the case where the document doesn't exist, e.g., show a user-friendly message
         setState((){
-          Records.selectedWeek = WeekRecord();
+          Records.selectedWeek = WeekRecord(payments: {}, tipTotal: 0, netTotal: 0, employeesWorked: []);
         });
       }
     }
@@ -318,7 +326,7 @@ class _SalaryHomePageState extends State<SalaryHomePage>
       print("Error fetching record data: $e ~ dbFetchRecord(catch) - catchCount: $catchCount");
       // Handle the error appropriately, e.g., show a user-friendly message
       setState((){
-        Records.selectedWeek = WeekRecord();
+        Records.selectedWeek = WeekRecord(payments: {}, tipTotal: 0, netTotal: 0, employeesWorked: []);
       });
     }
   }
@@ -435,14 +443,13 @@ class _SalaryHomePageState extends State<SalaryHomePage>
 
   void onItemTap(int index) {
     setState(() {
-      if (isMultiSelect) {
-        if (selectedIndices.contains(index)) {
-          selectedIndices.remove(index);
-        } else {
-          selectedIndices.add(index);
-        }
+      if (selectedIndices.contains(index)) {
+        selectedIndices.remove(index);
       } else {
-        selectedIndices = {index};
+        if(!isMultiSelect){
+          selectedIndices.clear();
+        }
+        selectedIndices.add(index);
       }
     });
   }
@@ -454,7 +461,7 @@ class _SalaryHomePageState extends State<SalaryHomePage>
   // =<START>= Full-Feature Widgets =<START>= //
   //A widget that provides a whole feature
 
-  Widget prefixedCalendar({double screenWidth = 300}){
+  Widget prefixedCalendar({double screenWidth = 300, bool writeComponent = false}){
 
     return Container(
       padding: const EdgeInsets.all(7),
@@ -517,8 +524,13 @@ class _SalaryHomePageState extends State<SalaryHomePage>
           },
           onDaySelected: (selectedDay, focusedDay) {
             setState(() {
+              if(_tabController.index == 2){
+                hoursAndTips.clear();
+              }
               _selectedDay = selectedDay;
-              findWorkingEmployees();
+              if (_tabController.index == 0){
+                findWorkingEmployees();
+              }
               _focusedDay = focusedDay; // update `_focusedDay` here as well
             });
           },
@@ -588,8 +600,8 @@ class _SalaryHomePageState extends State<SalaryHomePage>
         context: context,
         builder: (BuildContext context){
           return AlertDialog(
-            title: const Text('Unsaved Changes!'),
-            content: const Text('Do you want to leave anyways?\nAll changes will be lost.'),
+            title: const Text('Changes made!'),
+            content: const Text('Do you want to continue anyways?\nAll un-saved changes will be lost.'),
             actions: [
               TextButton(onPressed: (){
                 Navigator.of(context).pop();
@@ -727,6 +739,45 @@ class _SalaryHomePageState extends State<SalaryHomePage>
                     }
                     empListToUpdate.clear();
                   }
+                  if(hoursAndTips.isEmpty){
+                    return;
+                  }
+                  for(int i = 0; i < hoursAndTips.length; i++){
+                    if(Records.selectedWeek.employeesWorked.any((emp) => emp['employeeID'] == hoursAndTips[i]['id'])){
+                      Records.selectedWeek.employeesWorked.firstWhere((emp) => emp['employeeID'] == hoursAndTips[i]['id'])['hoursWorked']
+                        += double.parse(hoursAndTips[i]['hoursWorked']);
+                      Records.selectedWeek.employeesWorked.firstWhere((emp) => emp['employeeID']
+                          == hoursAndTips[i]['id'])['workedDays'][(_selectedDay.weekday - 1)] = true;
+                    }
+                    else{
+                      Records.selectedWeek.employeesWorked.add({
+                        'employeeID': hoursAndTips[i]['id'],
+                        'hoursRate': empList.firstWhere((emp) => emp.id == hoursAndTips[i]['id']).hoursRate,
+                        'hoursWorked': double.parse(hoursAndTips[i]['hoursWorked']),
+                        'tipDistribution': 0,
+                        'workedDays': [false, false, false, false, false, false, false],
+                      });
+                      Records.selectedWeek.employeesWorked
+                        .firstWhere((emp) => emp['employeeID'] == hoursAndTips[i]['id'])
+                          ['workedDays'][_selectedDay.weekday - 1] = true;
+                    }
+
+                  }
+                  double count = 0;
+                  for(int i = 0; i < Records.selectedWeek.employeesWorked.length; i++){
+                    if(Records.selectedWeek.employeesWorked[i]['workedDays'][(_selectedDay.weekday - 1)]){
+                      count++;
+                    }
+                  }
+                  int funcIndex = 0;
+                  print('${hoursAndTips[0]} and count: $count and tipDis is type ${Records.selectedWeek.employeesWorked[0]['tipDistribution'].runtimeType}');
+                  for(int i = 0; i < Records.selectedWeek.employeesWorked.length; i++){
+                    if(Records.selectedWeek.employeesWorked[i]['workedDays'][(_selectedDay.weekday - 1)]){
+                      Records.selectedWeek.employeesWorked[i]['tipDistribution'] += double.parse(hoursAndTips[funcIndex]['tipDistribution']) / count;
+                      funcIndex++;
+                    }
+                  }
+                  Records.selectedWeek.tipTotal += double.parse(hoursAndTips[0]['tipDistribution']);
                   Records.setRecords(getFirstDateOfCurrentWeek(_selectedDay).toString().split(' ')[0], Records.selectedWeek);
                   saveMessage();
                 },
@@ -1470,23 +1521,6 @@ class _SalaryHomePageState extends State<SalaryHomePage>
                         child:
                         Column(         //STRUCTURE WITHIN CONTAINER
                           children: [
-                            SizedBox(   //CONTROL DIMENSIONS OF SEARCH BAR
-                              width: 0.37 * screenWidth,
-                              height: 0.1 * screenHeight,
-                              child:
-                              TextField( //SEARCH BAR WIDGET
-                                  decoration:
-                                  const InputDecoration(
-                                    hintText: 'Search employees...',
-                                    prefixIcon: Icon(Icons.search),
-                                  ),
-                                  onChanged: (value){
-                                    setState(() {
-                                      empListFiltered = empList.where((employee) => employee.name.contains(value)).toList();
-                                    });
-                                  }
-                              ),
-                            ),
                             //=========================================
                             Row(
                               children: [
@@ -1558,9 +1592,9 @@ class _SalaryHomePageState extends State<SalaryHomePage>
                             height: screenHeight * 0.1,
                             margin:
                             EdgeInsets
-                                .fromLTRB(screenWidth * 0.05, 0, screenWidth * 0.05, 0),
+                                .fromLTRB(screenWidth * 0.02, 0, screenWidth * 0.02, 0),
                             padding:
-                            const EdgeInsets.all(10.0),
+                            const EdgeInsets.all(4.0),
 
                             decoration:
                             BoxDecoration(
@@ -1577,6 +1611,24 @@ class _SalaryHomePageState extends State<SalaryHomePage>
                               //controller: ,
                               keyboardType: TextInputType.number,
                               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                              onSubmitted: (value){
+                                double check = double.tryParse(value) ?? 0;
+                                if (check != 0){
+                                  for(int i = 0; i < selectedIndices.length; i++){
+                                    String tempID = empListFiltered[selectedIndices.elementAt(i)].id;
+                                    if(hoursAndTips.any((emp) => emp['id'] == tempID)){
+                                      hoursAndTips.firstWhere((emp) => emp['id'] == tempID)['hoursWorked'] = value;
+                                    }
+                                    else{
+                                      hoursAndTips.add({
+                                        'id': empListFiltered[selectedIndices.elementAt(i)].id,
+                                        'hoursWorked': value,
+                                        'tipDistribution': 0,
+                                      });
+                                    }
+                                  }
+                                }
+                              },
                               style: const TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w400,
@@ -1591,7 +1643,7 @@ class _SalaryHomePageState extends State<SalaryHomePage>
                           ),
                         ],
                       ),
-                      _sizedPadding(height: 0.03),
+                      _sizedPadding(height: 0.01),
 
                       Row( // Day's total tips (Split between anyone in employeesWorked of the selected record with 'true' on the specified weekday)
                         children: [
@@ -1606,9 +1658,9 @@ class _SalaryHomePageState extends State<SalaryHomePage>
                             height: screenHeight * 0.1,
                             margin:
                             EdgeInsets
-                                .fromLTRB(screenWidth * 0.05, 0, screenWidth * 0.05, 0),
+                                .fromLTRB(screenWidth * 0.02, 0, screenWidth * 0.02, 0),
                             padding:
-                            const EdgeInsets.all(10.0),
+                            const EdgeInsets.all(4.0),
 
                             decoration:
                             BoxDecoration(
@@ -1625,6 +1677,24 @@ class _SalaryHomePageState extends State<SalaryHomePage>
                               //controller: ,
                               keyboardType: TextInputType.number,
                               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                              onSubmitted: (value){
+                                double check = double.tryParse(value) ?? 0;
+                                if (check != 0){
+                                  for(int i = 0; i < selectedIndices.length; i++){
+                                    String tempID = empListFiltered[selectedIndices.elementAt(i)].id;
+                                    if(hoursAndTips.any((emp) => emp['id'] == tempID)){
+                                      hoursAndTips.firstWhere((emp) => emp['id'] == tempID)['tipDistribution'] = value;
+                                    }
+                                    else{
+                                      hoursAndTips.add({
+                                        'id': empListFiltered[selectedIndices.elementAt(i)].id,
+                                        'hoursWorked': 0,
+                                        'tipDistribution': value,
+                                      });
+                                    }
+                                  }
+                                }
+                              },
                               style: const TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w400,
