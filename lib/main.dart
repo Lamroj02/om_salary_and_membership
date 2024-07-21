@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:om_salary_and_membership/salaryRoutes.dart';
 import 'package:om_salary_and_membership/membershipRoutes.dart';
+import 'package:om_salary_and_membership/incomeRoutes.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 
@@ -118,9 +119,23 @@ class _MyHomePageState extends State<MyHomePage> {
               'Would you like to manage the:',
               style: TextStyle( fontSize: 30 ),
             ),
-
             TextButton(
-              style: const ButtonStyle( backgroundColor: MaterialStatePropertyAll<Color>(Color.fromARGB(12,0,0,0)) ),
+              style: const ButtonStyle( backgroundColor: WidgetStatePropertyAll<Color>(Color.fromRGBO(149, 117, 205, 1))),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const MembershipHomePage(title: 'Membership Manager',) //Remember to change this out!
+                  ),
+                );
+              },
+              child: const Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Text('Memberships',
+                    style: TextStyle( fontSize: 24, color: Colors.white)),
+              ),
+            ),
+            TextButton(
+              style: const ButtonStyle( backgroundColor: WidgetStatePropertyAll<Color>(Colors.lightGreen)),
               onPressed: () {
                 Navigator.push(
                   context,
@@ -130,23 +145,24 @@ class _MyHomePageState extends State<MyHomePage> {
               child: const Padding(
                 padding: EdgeInsets.all(16.0),
                 child: Text('Salaries',
-                style: TextStyle( fontSize: 24 )),
+                style: TextStyle( fontSize: 24, color: Colors.white )),
               ),
             ),
 
+
             TextButton(
-              style: const ButtonStyle( backgroundColor: MaterialStatePropertyAll<Color>(Color.fromARGB(12,0,0,0)) ),
+              style: const ButtonStyle( backgroundColor: WidgetStatePropertyAll<Color>(Color.fromARGB(255, 66, 165, 245)) ),
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const MembershipHomePage(title: 'Membership Manager',)
+                  MaterialPageRoute(builder: (context) => const IncomeRoutesHomePage(title: 'Business Income Manager',)
                   ),
                 );
               },
               child: const Padding(
                 padding: EdgeInsets.all(16.0),
-                child: Text('Memberships',
-                    style: TextStyle( fontSize: 24 )),
+                child: Text('Business Income',
+                    style: TextStyle( fontSize: 24, color: Colors.white )),
               ),
             )
           ],
