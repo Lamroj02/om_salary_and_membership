@@ -31,7 +31,7 @@ class Records{
         },
         'employeesWorked': empWorkedList,
         'netTotal': record.netTotal,
-        'tipTotal': record.netTotal,
+        'tipTotal': record.tipTotal,
       });
       print('Record added successfully');
 
@@ -39,6 +39,8 @@ class Records{
       print('Error adding Record: $e');
     }
   }
+
+
 }
 
 class WeekRecord{

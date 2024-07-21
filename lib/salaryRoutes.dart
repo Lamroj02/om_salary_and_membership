@@ -707,7 +707,7 @@ class _SalaryHomePageState extends State<SalaryHomePage>
     return Scaffold(
           appBar: AppBar(
             leading: IconButton(
-              icon: const Icon(Icons.arrow_back),
+              icon: const Icon(Icons.arrow_back, color: Colors.white,),
               onPressed: (){
                 if (empListToUpdate.isNotEmpty){
                   unsavedChangesMessage();
@@ -718,7 +718,7 @@ class _SalaryHomePageState extends State<SalaryHomePage>
               },
             ),
 
-            title: const Text('Salaries Manager'),
+            title: const Text('Salaries Manager', style: TextStyle(color: Colors.white),),
             backgroundColor: Colors.lightGreen,
             
             actions: [
@@ -1143,8 +1143,8 @@ class _SalaryHomePageState extends State<SalaryHomePage>
                                       child:
                                         TextField(
                                           controller: _rateController,
-                                          keyboardType: TextInputType.number,
-                                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                            inputFormatters: <TextInputFormatter>[FilteringTextInputFormatter.allow(RegExp(r'^\d+(\.\d*)?'))],
                                           onChanged: (value){
                                             _selectedEmployee.hoursRate = double.tryParse(value) ?? _selectedEmployee.hoursRate;
                                             if(!empListToUpdate.contains(_selectedEmployee.id)){
@@ -1609,8 +1609,8 @@ class _SalaryHomePageState extends State<SalaryHomePage>
                             child:
                             TextField(
                               //controller: ,
-                              keyboardType: TextInputType.number,
-                              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              inputFormatters: <TextInputFormatter>[FilteringTextInputFormatter.allow(RegExp(r'^\d+(\.\d*)?'))],
                               onSubmitted: (value){
                                 double check = double.tryParse(value) ?? 0;
                                 if (check != 0){
@@ -1675,8 +1675,8 @@ class _SalaryHomePageState extends State<SalaryHomePage>
                             child:
                             TextField(
                               //controller: ,
-                              keyboardType: TextInputType.number,
-                              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              inputFormatters: <TextInputFormatter>[FilteringTextInputFormatter.allow(RegExp(r'^\d+(\.\d*)?'))],
                               onSubmitted: (value){
                                 double check = double.tryParse(value) ?? 0;
                                 if (check != 0){

@@ -311,11 +311,11 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
     // than having to individually change instances of widgets.
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Membership Manager'),
+        title: const Text('Membership Manager', style: TextStyle(color: Colors.white),),
         toolbarHeight: 80.0,
         backgroundColor: Colors.indigo,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back, color: Colors.white,),
           onPressed: () => Navigator.pop(context),
           color: Colors.indigo.shade100,
         ),
@@ -552,8 +552,8 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
                         width: screenWidth * 0.1,
                         child: TextField(
                           controller: tdPointController,
-                          keyboardType: TextInputType.number, // Set the input type to number
-                          inputFormatters: [FilteringTextInputFormatter.digitsOnly], // Accept only digits
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          inputFormatters: <TextInputFormatter>[FilteringTextInputFormatter.allow(RegExp(r'^\d+(\.\d*)?'))], // Accept only digits
                           onChanged: (value){
                             if (!toUpdateIds.contains(selectedMember.id)){
                               toUpdateIds.add(selectedMember.id);
