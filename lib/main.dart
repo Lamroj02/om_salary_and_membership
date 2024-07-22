@@ -165,7 +165,7 @@ class _MyHomePageState extends State<MyHomePage> {
         title: Text(widget.title, style: const TextStyle(color: Colors.white70)),
         actions: [
           Text(signedUser, style: const TextStyle(color: Colors.white70, fontSize: 16, fontWeight: FontWeight.w400),),
-          _sizedPadding(width: 0.05),
+          _sizedPadding(width: 0.01),
           const Icon(Icons.account_circle, color: Colors.white, size: 36,),
           _sizedPadding(width: 0.1),
         ],
@@ -220,7 +220,10 @@ class _MyHomePageState extends State<MyHomePage> {
                         padding: const EdgeInsets.fromLTRB(5, 5, 5, 5),
                         child: TextButton(
                           onPressed: (){
-                            trySignIn();
+                            trySignIn().then((_) {
+                                usrNameController.text = '';
+                                passController.text = '';
+                              });
                           },
                           child: const Text('Sign in', style: TextStyle(fontWeight: FontWeight.w400, color: Colors.black),),
                         ),
