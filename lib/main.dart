@@ -1,12 +1,15 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:om_salary_and_membership/salaryRoutes.dart';
 import 'package:om_salary_and_membership/membershipRoutes.dart';
 import 'package:om_salary_and_membership/incomeRoutes.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-
-
+//Instantiates firestore database for use within flutter application
+late final FirebaseFirestore db;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized(); // <-- Ensure Flutter is initialized
@@ -14,6 +17,7 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
+  db = FirebaseFirestore.instance;
   runApp(const MyApp());
 }
 
@@ -70,32 +74,163 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
 
+  /// === VARIABLES === ///
+  int authorised = 0;
+  String signedUser = '';
+  late TextEditingController usrNameController;
+  late TextEditingController passController;
+
+
+  /// === OVERRIDES === ///
+  @override
+  void initState() {
+    super.initState();
+    usrNameController = TextEditingController(text:'');
+    passController = TextEditingController(text: '');
+  }
+
+  @override
+  void dispose(){
+    usrNameController.dispose();
+    passController.dispose();
+    super.dispose();
+  }
+
+
+  /// === METHODS === ///
+  Widget _sizedPadding({double width = 0.1, double height = 0.1}){
+    return SizedBox(
+        width:  MediaQuery.of(context).size.width * width,
+        height: MediaQuery.of(context).size.height * height
+    );
+  }
+
+  // true if successful, false otherwise
+  Future<void> trySignIn() async {
+    try {
+      final DocumentSnapshot doc = await db.collection("Users").doc(usrNameController.text).get();
+      if (doc.exists) {
+        if(doc['password'] == passController.text) {
+          setState(() {
+            authorised = doc['hasFullAccess'] ? 2 : 1;
+            signedUser = doc.id;
+            signInMessage(true);
+          });
+          return;
+        }
+      }
+      // Handle the case where the document doesn't exist, e.g., show a user-friendly message
+      setState((){
+        signInMessage(false);
+      });
+    }
+    catch (e) {
+      signInMessage(false);
+    }
+  }
+
+  Future<void> signInMessage(bool isSuccess) async {
+    return showDialog<void>(
+        context: context,
+        builder: (BuildContext context){
+          return AlertDialog(
+            title: Text((isSuccess ? 'Successfully signed in!' : 'Wrong username\nor password')),
+            content: Text(isSuccess ? 'You can now access\n${authorised < 2 ? 'membership services!' : 'all services!'}' : 'Please try again.'),
+            actions: [
+              TextButton(onPressed: (){Navigator.of(context).pop();}, child: const Text('OK')),
+            ],
+          );
+        }
+    );
+  }
+
+
+  /// /// //// /// ///
+  /// /// MAIN /// ///
+  /// /// //// /// ///
+
   @override
   Widget build(BuildContext context) {
     // This method is rerun every time setState is called, for instance as done
     // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
+    double screenHeight = MediaQuery.of(context).size.height;
+    double screenWidth  = MediaQuery.of(context).size.width;
+
+
     return Scaffold(
       appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
+
         backgroundColor: Colors.deepPurple,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
+
+        title: Text(widget.title, style: const TextStyle(color: Colors.white70)),
+        actions: [
+          Text(signedUser, style: const TextStyle(color: Colors.white70, fontSize: 16, fontWeight: FontWeight.w400),),
+          _sizedPadding(width: 0.05),
+          const Icon(Icons.account_circle, color: Colors.white, size: 36,),
+          _sizedPadding(width: 0.1),
+        ],
       ),
 
       body: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: <Widget>[
+          //_sizedPadding(width: 0.2),
+          Column(
+            children: [
+              Image.asset(
+                'assets/images/OM.jpg',
+                scale: 2,
+              ),
+              Container(
+                width: screenWidth * 0.4,
+                margin: const EdgeInsets.all(8.0),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade200,
+                  border: Border.all(width: 5, color: Colors.grey.shade600),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child:
+                  Column(
+                    children: [
+                      _sizedPadding(height: 0.01),
+                      const Text('Username:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),),
+                      Container(
+                        decoration: BoxDecoration(borderRadius: BorderRadius.circular(5), border: Border.all(width: 5)),
+                        margin: const EdgeInsets.all(10),
+                        padding: const EdgeInsets.fromLTRB(15, 5, 15, 5),
+                        child: TextField(
+                          controller: usrNameController,
+                          style: const TextStyle(fontWeight: FontWeight.w400, fontSize: 15),
+                        ),
+                      ),
+                      const Text('Password:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),),
+                      Container(
+                        decoration: BoxDecoration(borderRadius: BorderRadius.circular(5), border: Border.all(width: 5)),
+                        margin: const EdgeInsets.all(10),
+                        padding: const EdgeInsets.fromLTRB(15, 5, 15, 5),
+                        child: TextField(
+                          controller: passController,
+                          obscureText: true,
+                          style: const TextStyle(fontWeight: FontWeight.w400, fontSize: 15),
+                        ),
+                      ),
+                      Container(
+                        decoration: BoxDecoration(borderRadius: BorderRadius.circular(5), border: Border.all(width: 3)),
+                        margin: const EdgeInsets.all(5),
+                        padding: const EdgeInsets.fromLTRB(5, 5, 5, 5),
+                        child: TextButton(
+                          onPressed: (){
+                            trySignIn();
+                          },
+                          child: const Text('Sign in', style: TextStyle(fontWeight: FontWeight.w400, color: Colors.black),),
+                        ),
+                      ),
 
-          Image.asset(
-              'assets/images/OM.jpg',
-              scale: 1.8,
+
+                    ],
+                  ),
+              ),
+            ],
           ),
 
           Column(
@@ -120,49 +255,66 @@ class _MyHomePageState extends State<MyHomePage> {
               style: TextStyle( fontSize: 30 ),
             ),
             TextButton(
-              style: const ButtonStyle( backgroundColor: WidgetStatePropertyAll<Color>(Color.fromRGBO(149, 117, 205, 1))),
-              onPressed: () {
+              style:
+                ButtonStyle( backgroundColor: WidgetStateProperty.resolveWith((states){
+                  if (states.contains(WidgetState.disabled)) {return Colors.grey;}
+                  else {return (const Color.fromRGBO(149, 117, 205, 1));}
+                }),
+              ),
+
+              onPressed: authorised < 1 ? null : () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => const MembershipHomePage(title: 'Membership Manager',) //Remember to change this out!
                   ),
                 );
               },
-              child: const Padding(
-                padding: EdgeInsets.all(16.0),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
                 child: Text('Memberships',
-                    style: TextStyle( fontSize: 24, color: Colors.white)),
+                    style: TextStyle( fontSize: 24, color: (authorised < 1 ? Colors.grey.shade200 : Colors.white),),
+                ),
               ),
             ),
             TextButton(
-              style: const ButtonStyle( backgroundColor: WidgetStatePropertyAll<Color>(Colors.lightGreen)),
-              onPressed: () {
+              style:
+                ButtonStyle( backgroundColor: WidgetStateProperty.resolveWith((states){
+                  if (states.contains(WidgetState.disabled)) {return Colors.grey;}
+                  else {return Colors.lightGreen;}
+                  }),
+                ),
+              onPressed: authorised < 2 ? null : () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => const SalaryHomePage(title: 'Salary Manager',)),
                 );
               },
-              child: const Padding(
-                padding: EdgeInsets.all(16.0),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
                 child: Text('Salaries',
-                style: TextStyle( fontSize: 24, color: Colors.white )),
+                style: TextStyle( fontSize: 24, color: (authorised < 1 ? Colors.grey.shade200 : Colors.white),)),
               ),
             ),
 
 
             TextButton(
-              style: const ButtonStyle( backgroundColor: WidgetStatePropertyAll<Color>(Color.fromARGB(255, 66, 165, 245)) ),
-              onPressed: () {
+              style:
+                ButtonStyle( backgroundColor: WidgetStateProperty.resolveWith((states){
+                  if (states.contains(WidgetState.disabled)) {return Colors.grey;}
+                  else {return const Color.fromARGB(255, 66, 165, 245);}
+                }),
+                ),
+              onPressed: authorised < 2 ? null : ()  {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => const IncomeRoutesHomePage(title: 'Business Income Manager',)
                   ),
                 );
               },
-              child: const Padding(
-                padding: EdgeInsets.all(16.0),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
                 child: Text('Business Income',
-                    style: TextStyle( fontSize: 24, color: Colors.white )),
+                    style: TextStyle( fontSize: 24, color: (authorised < 1 ? Colors.grey.shade200 : Colors.white))),
               ),
             )
           ],
