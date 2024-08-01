@@ -1,3 +1,4 @@
+NOTE: up2061186 is the student account for Lamroj02, they are the SAME PERSON. All contributions by them can be attributed to Lamroj02.
 # om_salary_and_membership
 
 App for a small restaurant business, OM.
