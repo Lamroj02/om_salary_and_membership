@@ -81,33 +81,22 @@ Future<void> uploadMember(Member member) async {
     print('Error uploading Member: $e');
   }
 }
+Future<void> deleteMemberStored(String memberID) async {
+  try {
+    await db.collection('Members').doc(memberID).delete();
+    print('Member deleted successfully');
+  } catch (e) {
+    print('Error deleting Member: $e');
+  }
+}
 
 class _MembershipHomePageState extends State<MembershipHomePage> {
 
   /// VARIABLES ///
   //#region
-  /*
-  List<Member> sampleMembers = [
-    Member("Alice", '001', 'Alice20@gmail.com', '01214097350', 150, DateTime.now()),
-    Member("Bob",  '008', 'Bob20@gmail.com', '01214097350', 120, DateTime.now()),
-    Member("Carol",  '018', 'Carol20@gmail.com', '01214097350',180, DateTime.now()),
-    Member("David",  '025', 'David20@gmail.com', '01214097350',90, DateTime.now()),
-    Member("Eve",  '035', 'Eve20@gmail.com', '01214097350',160, DateTime.now()),
-    Member("Frank",  '042', 'Frank20@gmail.com', '01214097350',130, DateTime.now()),
-    Member("Grace",  '052', 'Grace20@gmail.com', '01214097350',170, DateTime.now()),
-    Member("Harry",  '059', 'Harry20@gmail.com', '01214097350',110, DateTime.now()),
-    Member("Ivy",  '069', 'Ivy20@gmail.com', '01214097350',140, DateTime.now()),
-    Member("Jack",  '076', 'Jack20@gmail.com', '01214097350',170, DateTime.now()),
-    Member("Karen",  '086', 'Karen20@gmail.com', '01214097350',100, DateTime.now()),
-    Member("Larry",  '093', 'Larry20@gmail.com', '01214097350',190, DateTime.now()),
-    Member("Megan",  '100', 'Megan20@gmail.com', '01214097350',110, DateTime.now()),
-    Member("Nancy",  '107', 'Nancy20@gmail.com', '01214097350',140, DateTime.now()),
-    Member("Oscar",  '117', 'Oscar20@gmail.com', '01214097350',180, DateTime.now()),
-    Member("Sam Tangerine", '207','Sam-TangerGOD20@gmail.com', '01214097350',100, DateTime.now()),
-    Member("Polly Amorus", '115','Polly20@gmail.com', '01214097350',100, DateTime.now())
-  ];*/ //
 
   List<String> toUpdateIds = [];
+  List<String> toDeleteIds = [];
   List<Member> rawMembers = [];
   List<Member> filteredMembers = [];
   late TextEditingController nameController, pointController,tdPointController,sumController,voucherController;
@@ -246,12 +235,7 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
         .redAccent) { // If the button is already red, delete selected member
       for (int i = 0; i < rawMembers.length; i++) {
         if (selectedMember.id == rawMembers[i].id) {
-          for (int j = 0; j < filteredMembers.length; j++) {
-            if (selectedMember.id == filteredMembers[j].id) {
-              filteredMembers.removeAt(j);
-              break;
-            }
-          }
+          toDeleteIds.add(rawMembers[i].id);
           setState(() {
             rawMembers.removeAt(i);
             selectedMember = Member(voucher: DateTime.now());
@@ -329,6 +313,10 @@ class _MembershipHomePageState extends State<MembershipHomePage> {
                     await uploadMember(rawMembers.firstWhere((mem) => mem.id == toUpdateIds[i]));
                   }
                   toUpdateIds.clear();
+                  for(int i = 0; i < toDeleteIds.length; i++){
+                    await deleteMemberStored(toDeleteIds[i]);
+                  }
+                  toDeleteIds.clear();
                   SaveMessage();
                 },
                 style: ElevatedButton.styleFrom(

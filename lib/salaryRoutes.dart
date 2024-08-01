@@ -219,6 +219,7 @@ class _SalaryHomePageState extends State<SalaryHomePage>
   List<Employee> empListWorked = [];
   List<Employee> empListFiltered = [];
   List<String> empListToUpdate = [];
+  List<String> empListToAdd = [];
   Employee _selectedEmployee = Employee(hoursRate: 0,id: '',studentPlan: 0,isPostGrad: false,name: '');
 
   // Day/Week switch variables
@@ -312,6 +313,7 @@ class _SalaryHomePageState extends State<SalaryHomePage>
         setState(() {
           Records.selectedWeek = WeekRecord.fromFirestore(doc);
         });
+        print("Successfully fetched document! ~ dbFetchRecord(if)");
       }
       else {
         print("No such document! ~ dbFetchRecord(else)");
@@ -947,7 +949,12 @@ class _SalaryHomePageState extends State<SalaryHomePage>
                                 Row(
                                   children: [
                                     ElevatedButton(
-                                      onPressed: (){ // Adds employee to newEmpList, if save then all newEmpList employees get added to database.
+                                      onPressed: () { // Adds employee to newEmpList, if save then all newEmpList employees get added to database.
+                                        addEmployee(Employee(id: '',name: '',hoursRate: 0,studentPlan: 0,isPostGrad: false));
+                                        dbFetchEmployees().then((_){
+                                          setState(() {
+                                          });
+                                        });
 
                                       },
                                       child: Icon(Icons.add, color: Colors.lightGreen.shade700,),
